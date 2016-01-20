@@ -4,72 +4,47 @@
 # put this script in a repository root directory 
 # It will scan the whole subdir pdf and generate html link for it in "html" and "pages" subdirectory
 
-# Update: 2016.1.14 1:52AM
+# Update: 2016.1.19 3:26AM
 
 import os,sys,glob
 import re, requests,urllib2
 
 # User link for repository
-userlink="https://github.com/OAPDF/"
-# Setup the doilink dir 
+userlink="https://github.com/oapdf1/"
+# Setup the doilink dir
+
+# doilink dir is for doilink saving
+doilinkdir="../doilink/"
+outdoilinkdir=doilinkdir+"pages/"
+
 #oapdfdir="../doilink/"
 oapdfdir="_pages/"
-doilinkdir="../doilink/"
+outdir="pages/"
+if (oapdfdir):
+	outdir=oapdfdir+outdir
+#if (not os.path.exists("html")): os.makedirs("html")
+if (not os.path.exists(outdir)): os.makedirs(outdir)
 
 # Force rewrite the existing file
 force=False
 combine=False
+# Default method
+postcombine=True
 
 if (len(sys.argv)>1): 
-	if sys.argv[1]  == 'f': force = True
-	elif sys.argv[1] == 'c': combine=True
+	if sys.argv[1]  == 'f': 
+		force = True; postcombine=False
+	elif sys.argv[1] == 'c': 
+		combine=True; postcombine=False
+	elif sys.argv[1] == 'n': 
+		postcombine=False
 
-# if _pages, don't submit to github
-if (oapdfdir =='_pages/' or oapdfdir =='./_pages/' ):
-	if (os.path.exists('.gitignore')):
-		f=open('.gitignore')
-		s=f.read();f.close()
-		if ('_pages/' not in s):
-			f=open('.gitignore','a')
-			f.write('_pages/'+'\n')
-			f.close()
-	else:
-		f=open('.gitignore','a')
-		f.write('_pages/'+'\n')
-		f.close()
-	# do the combine! You'd better move the not repeat file to doilink firstly! 
-	if (combine):
-		result = [os.path.join(dp, f) for dp, dn, filenames in os.walk("_pages/pages/") for f in filenames if os.path.splitext(f)[1] == '.html']
-		for fname in result:
-			doifname=fname.replace("_pages/",doilinkdir,1)
-			f=open(doifname);s1=f.read();f.close()
-			f=open(fname);s2=f.read();f.close()
-			pp1=s1.find('PubMed</a>')
-			pp2=s2.find('PubMed</a>')
-			cp1=s1[pp1:].find('|')
-			cp2=s2[pp1:].find('|')
-			lre=re.compile(r'(?<=<a href=\").*?(?=\">)')
-			links1=lre.findall(s1[pp1+cp1:])
-			links2=lre.findall(s2[pp2+cp2:])
-			for link in links2:
-				if link not in links1:
-					links1.append(link)
-			linkstr=""
-			for i in range(len(links1)):
-				if (i is 0):
-					linkstr+='<a href="'+links1[i]+'">PDFLink</a>'
-				else:
-					linkstr+=',<a href="'+links1[i]+'">'+str(i+1)+'</a>'
-			f=open(doifname,'w')
-			f.write(re.sub(r'PubMed</a>.*?</span>','PubMed</a> | '+linkstr+'</span>',s1))
-			f.close()
-			print "Successful combine for:",fname
-		sys.exit(0)
+nowdir=os.path.basename(os.path.abspath(os.path.curdir))
+p=re.compile(r"<title>.*?</title>")
+pl=re.compile(r'(?<=<a href=\")http.*?(?=\">)')
+ph=re.compile(r"</head>")
 
-
-outdir="pages/"
-if (oapdfdir and os.path.exists(oapdfdir)):
-	outdir=oapdfdir+outdir
+########## Function
 
 def doidecompose(suffix):
 	lens=len(suffix)
@@ -161,14 +136,68 @@ def has_oapdf_pdf(doi,check=False):
 	except:
 		return False
 
+def combinepage(fname,outdir='_pages/pages/',outdoilinkdir='../doilink/pages/'):
+	'''Only suitable here'''
+	if (outdir == doilinkdir):return
+	doifname=fname.replace(outdir,outdoilinkdir,1)
+	if (not os.path.exists(fname)):return
+	f=open(fname);s2=f.read();f.close()
 
-nowdir=os.path.basename(os.path.abspath(os.path.curdir))
-#if (not os.path.exists("html")): os.makedirs("html")
-if (not os.path.exists("pages")): os.makedirs("pages")
+	doidir=os.path.split(doifname)[0]
+	if (not os.path.exists(doifname)):
+		try:
+			if (not os.path.exists(doidir)): os.makedirs(doidir)
+			f=open(doifname,'w');
+			f.write(s2);
+			f.close()
+		except Exception as e:
+			print e
+			print "Can't write out to doilink file:",doifname
+		return
 
-p=re.compile(r"<title>.*?</title>")
-pl=re.compile(r'(?<=<a href=")http.*?(?=">)')
-ph=re.compile(r"</head>")
+	f=open(doifname);s1=f.read();f.close()
+	pp1=s1.find('PubMed</a>')
+	pp2=s2.find('PubMed</a>')
+	cp1=s1[pp1:].find('|')#maybe rfind('|') will good, by if | exist at end?
+	cp2=s2[pp1:].find('|')
+	links1=pl.findall(s1[pp1+cp1:])
+	links2=pl.findall(s2[pp2+cp2:])
+	for link in links2:
+		if link not in links1:
+			links1.append(link)
+	linkstr=""
+	for i in range(len(links1)):
+		if (i is 0):
+			linkstr+='<a href="'+links1[i]+'">PDFLink</a>'
+		else:
+			linkstr+=',<a href="'+links1[i]+'">'+str(i+1)+'</a>'
+	f=open(doifname,'w')
+	f.write(re.sub(r'PubMed</a>.*?</span>','PubMed</a> | '+linkstr+'</span>',s1))
+	f.close()
+	print "Successful combine for:",fname, 'with',len(links1), 'links'
+
+############ Start #############
+
+# if _pages, don't submit to github
+if (oapdfdir =='_pages/' or oapdfdir =='./_pages/' ):
+	if (os.path.exists('.gitignore')):
+		f=open('.gitignore')
+		s=f.read();f.close()
+		if ('_pages/' not in s):
+			f=open('.gitignore','a')
+			f.write('_pages/'+'\n')
+			f.close()
+	else:
+		f=open('.gitignore','a')
+		f.write('_pages/'+'\n')
+		f.close()
+
+# do the combine! You'd better move the not repeat file to doilink firstly! 
+if (combine):
+	result = [os.path.join(dp, f) for dp, dn, filenames in os.walk("_pages/pages/") for f in filenames if os.path.splitext(f)[1] == '.html']
+	for fname in result:
+		combinepage(fname,outdir,outdoilinkdir)
+	sys.exit(0)
 
 findpdffiles=glob.glob("10.*.pdf")
 for pdffile in findpdffiles:
@@ -196,7 +225,7 @@ for prefix in prefixdir:
 					os.remove(dois[0]+os.sep+prefix)
 					os.renames(prefix,dois[0]+os.sep+prefix)
 				except:
-					print "Move fail.."+prefix
+					print "Move fail..",prefix
 		continue
 	#if (not os.path.exists("html/"+prefix)): 
 	#	os.makedirs("html/"+prefix)
@@ -217,6 +246,8 @@ for prefix in prefixdir:
 
 			### if force rewrite, rewrite it
 			if (not force and os.path.exists(pagedir+doiat+".html")):
+				if (postcombine and not os.path.exists(outdoilinkdir+prefix+"/"+suffixpath+doiat+".html")): 
+					combinepage(pagedir+doiat+".html",outdir,outdoilinkdir)
 				continue
 			realdoi=doiat.replace("@","/")
 			#may be wrong if origin doi has @
@@ -226,24 +257,12 @@ for prefix in prefixdir:
 			reallink=""
 			if ("redirect" in title):
 				reallink=pl.search(r.text).group()
-				pdflink=userlink+nowdir+"/blob/master/"+prefix+"/"+doiat+".pdf"
+				pdflink=userlink+nowdir+"/raw/master/"+prefix+"/"+doiat+".pdf"
 				#if (not os.path.exists(htmldir)): os.makedirs(htmldir)
 				if (not os.path.exists(pagedir)): os.makedirs(pagedir)
 				##write html page
 				#fw=open(htmldir+doiat+".html",'w')
 				#fw.write(ph.sub('<script>window.location.href="'+pdflink+'"</script></head>',r.text))
-				#fw.close()
-
-				## write pages page
-				##### For copy
-				#fw=open(pagedir+doiat+".html.html",'w')
-				#fw.write("<html><head><title>"+realdoi+'</title><meta name="robots" content="noindex,nofollow" /> <meta name="googlebots" content="noindex,nofollow" /></head><body>')
-				#fw.write('<iframe src="'+reallink+'" width="100%" height="96%"></iframe><div width="100%" align="center"><span style="align:center;">')
-				#fw.write('<a href="https://github.com/OAPDF/doilink/">OAPDF Project</a> : ')
-				#fw.write('<a href="https://scholar.google.com.hk/scholar?q='+realdoi+'">Google Scholar</a> | ')
-				#fw.write('<a href="http://xueshu.baidu.com/s?wd='+realdoi+'">Baidu Scholar</a> | ')
-				#fw.write('<a href="http://www.ncbi.nlm.nih.gov/pubmed/?term='+realdoi+'">PubMed</a> | ')
-				#fw.write('<a href="'+pdflink+'">PDFLink</a></span></div></body></html>')
 				#fw.close()
 
 				fw=open(pagedir+doiat+".html",'w')
@@ -256,12 +275,20 @@ for prefix in prefixdir:
 				fw.write('<a href="'+pdflink+'">PDFLink</a></span></div></body></html>')
 				fw.close()
 
-				#### For Copy
-				#try:
-				#	os.renames(pagedir+doiat+".html.html",oapdfdir+pagedir+doiat+".html")
-				#except WindowsError:
-				#	os.makedirs(oapdfdir+pagedir)
-				#	os.system("mv '"+pagedir+doiat+".html.html' '"+oapdfdir+pagedir+doiat+".html'")
+				if (force):
+					if (not os.path.exists(outdoilinkdir+prefix+"/"+suffixpath)): os.makedirs(outdoilinkdir+prefix+"/"+suffixpath)
+					fw=open(outdoilinkdir+prefix+"/"+suffixpath+doiat+".html",'w')
+					fw.write("<html><head><title>"+realdoi+'</title><meta name="robots" content="noindex,nofollow" /> <meta name="googlebots" content="noindex,nofollow" /></head><body>')
+					fw.write('<iframe src="'+reallink+'" width="100%" height="96%"></iframe><div width="100%" align="center"><span style="align:center;">')
+					fw.write('<a href="https://github.com/OAPDF/doilink/">OAPDF Project</a> : ')
+					fw.write('<a href="https://scholar.google.com.hk/scholar?q='+realdoi+'">Google Scholar</a> | ')
+					fw.write('<a href="http://xueshu.baidu.com/s?wd='+realdoi+'">Baidu Scholar</a> | ')
+					fw.write('<a href="http://www.ncbi.nlm.nih.gov/pubmed/?term='+realdoi+'">PubMed</a> | ')
+					fw.write('<a href="'+pdflink+'">PDFLink</a></span></div></body></html>')
+					fw.close()
+
+				if (not force and postcombine): combinepage(pagedir+doiat+".html",outdir,outdoilinkdir)
+
 			else:
 				print doi, " Error Link!"
 				try:

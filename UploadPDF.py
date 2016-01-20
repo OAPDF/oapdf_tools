@@ -2,9 +2,11 @@
 
 import os,sys,glob
 
-tmpdir='tmp'
-oapdfdir="OAPDF_2"
+tmpdir='OAPDF_1_2/10.1021'#'tmp'
+oapdfdir="OAPDF_1"
 doilinkdir='doilink'
+
+workingdir=os.path.abspath('.')
 
 totalsize=1
 while totalsize>0:
@@ -25,11 +27,11 @@ while totalsize>0:
 			if (int(rs) != 0):
 				print "Git submit fail!!! Check it!"
 				sys.exit(1)
-			os.chdir('../'+doilinkdir)
+			os.chdir(workingdir+os.sep+doilinkdir)
 			os.system('git add -A')
 			os.system('git commit -am "update"')
 			os.system('git push origin gh-pages')
-			os.chdir('..')
+			os.chdir(workingdir)
 			print "Successfully submit!"
 			break
 		try:
@@ -45,11 +47,11 @@ os.system('python gendoipage.py')
 os.system('git add -A')
 os.system('git commit -am "update"')
 os.system('git push origin master')
-os.chdir('../'+doilinkdir)
+os.chdir(workingdir+os.sep+doilinkdir)
 os.system('git add -A')
 os.system('git commit -am "update"')
 os.system('git push origin gh-pages')
-os.chdir('..')
+os.chdir(workingdir)
 print "Successfully submit!"
 
 
