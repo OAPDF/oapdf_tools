@@ -16,9 +16,6 @@ Thumbs.db
 .svn/
 *.swp
 *.swo
-*.pyc
-*.pyo
-build
 node_modules
 _site
 sea-modules
@@ -26,4 +23,9 @@ sea-modules
 _old
 *.sublime-project
 *.sublime-workspace
-
+*.pyc
+*.pyo
+build
+dist
+*.egg-info
+.coverage

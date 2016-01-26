@@ -12,7 +12,7 @@ escaper=HTMLParser()
 #disable requests warning
 requests.packages.urllib3.disable_warnings()
 
-outfileprefix="downacsc307"
+outfileprefix="downacs"
 
 jshort=['achre4', 'jafcau', 'ancham', 'aamick', 'bichaw', 'bcches', 'bomaf6', 'abseba', 'accacs', 'acscii', 'acbcct', 'jceda8', 'jceaax', 'jcisd8', 'acncdm', 'crtoec', 'chreay', 'jctcce', 'cmatex', 'acsccc', 'cgdefu', 'enfuem', 'esthag', 'estlcu', 'iechad', 'iecred', 'aidcbc', 'inocaj', 'jacsat', 'langd5', 'amlccd', 'mamobx', 'jmcmar', 'amclct', 'mpohbp', 'ancac3', 'nalefd', 'jnprdf', 'joceah', 'orlef7', 'oprdfk', 'orgnd7', 'acsodf', 'apchd5', 'jpcafh', 'jpcbfk', 'jpccck', 'jpclcd', 'jpchax', 'jprobs', 'ascefj', 'ascecg', 'asbcd6', 'cenear']
 jdone=['bichaw','jpcafh','jpccck', 'orlef7', 'joceah', 'jmcmar', 'inocaj','jacsat', 'acbcct','bomaf6']

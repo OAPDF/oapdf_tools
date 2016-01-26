@@ -1,5 +1,5 @@
-# oapdf_tools
-Tools for OAPDF
+# oapdftools
+Tools for OAPDF Project
 
 > Need python module: 
 

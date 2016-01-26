@@ -35,17 +35,18 @@ def maxissn(issns):
 
 
 def getpdfdir(doi):
-		'''Get only the larger issn, should normal doi'''
-	#try:
-		r=urllib2.urlopen('https://api.crossref.org/works/'+doi)
+	'''Get only the larger issn, should normal doi'''
+	try:
+		r=urllib2.urlopen('https://api.crossref.org/works/'+urllib2.quote(doi))
 		j=json.loads(r.read())
 		item=j['message']
 		volume=item.get('volume','0')
 		issue=item.get('issue','0')
 		issn=maxissn(item.get('ISSN',['9999-9999']))
 		return issn+os.sep+volume+os.sep+issue+os.sep
-	#except:
-	#	return ""
+	except:
+		print "Error DOI:",doi
+		return ""
 	
 for f in glob.iglob('10.*/10.*.pdf'):
 	paths=os.path.split(f)
