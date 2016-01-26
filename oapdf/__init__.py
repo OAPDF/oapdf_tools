@@ -16,8 +16,11 @@ __author__ = 'OAPDF'
 __license__ = 'MIT'
 
 from .doi import DOI
-from .crrecord import crrecord
-from .BaiduXueshu import BaiduXueshu
-from .BingAcedemic import BingAcedemic
-from .PDFdoiCheck import PDFdoiCheck
-from .EndnoteXML import EndnoteXML
+from .jrecord import Jrecord
+from .crrecord import CRrecord
+from .endnotexml import EndnoteXML
+from .baiduxueshu import BaiduXueshu
+from .bingacademic import BingAcademic
+from crossrefapi import CrossRefAPI
+from .pdfdoicheck import PDFdoiCheck
+from .pdfhandler import PDFHandler
