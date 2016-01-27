@@ -41,7 +41,7 @@ class stdmodel(object):
 from pdfminer.pdfinterp import PDFResourceManager, PDFPageInterpreter
 from pdfminer.pdfpage import PDFPage
 from pdfminer.layout import LAParams
-from pdfminer.converter import TextConverter
+from pdfminer.converter import TextConverter,HTMLConverter
 #from cStringIO import StringIO
 #from pdfminer.converter import XMLConverter, HTMLConverter
 #from pdfminer.pdfdocument import PDFDocument
@@ -66,7 +66,8 @@ class PDFHandler(object):
 		self.maxpages = 0
 		self.rotation = 0
 		self.imagewriter = None
-		self.laparams = LAParams()		
+		self.laparams = LAParams()	
+		self.layoutmode = 'normal'	
 	# ResourceManager facilitates reuse of shared resources such as fonts and images so that 
 	# large objects are not allocated multiple times.
 		#### This will cause some problem when set to default True.
@@ -77,13 +78,25 @@ class PDFHandler(object):
 		self.device = TextConverter(self.rsrcmgr, self.outfp, codec=self.codec, 
 			laparams=self.laparams, imagewriter=self.imagewriter)
 
-	def reset(self):
+		self.htmldevice = HTMLConverter(self.rsrcmgr, self.outfp, codec=self.codec, scale=self.scale,
+                               layoutmode=self.layoutmode, laparams=self.laparams,
+                               imagewriter=self.imagewriter)
+
+	def reset(self,html=False):
 		'''Reset can avoid wrong judge'''
 		self.rsrcmgr = PDFResourceManager(caching=self.caching)
 
 		# Important Main converter for pdf file
-		self.device = TextConverter(self.rsrcmgr, self.outfp, codec=self.codec, 
-			laparams=self.laparams, imagewriter=self.imagewriter)		
+		
+		if (html):
+			self.htmldevice.close()
+			self.htmldevice = HTMLConverter(self.rsrcmgr, self.outfp, codec=self.codec, scale=self.scale,
+		                   layoutmode=self.layoutmode, laparams=self.laparams,
+		                   imagewriter=self.imagewriter)
+		else:	
+			self.device.close()
+			self.device = TextConverter(self.rsrcmgr, self.outfp, codec=self.codec, 
+			laparams=self.laparams, imagewriter=self.imagewriter)
 
 	def setdebug(self,value):
 		'''Set Debug Information. Especially when init'''
@@ -126,12 +139,16 @@ class PDFHandler(object):
 			print "Error Reading PDF page number..",fname
 			return False
 
-	def GetSinglePage(self,fname,pageno=1):
+	def GetSinglePage(self,fname,pageno=1,html=False):
 		'''Get Single Page contents of PDF, return string
 		Default first page'''	
 		fp = file(fname, 'rb')
 		try:
-			interpreter = PDFPageInterpreter(self.rsrcmgr, self.device)
+			if (html):
+				interpreter = PDFPageInterpreter(self.rsrcmgr, self.htmldevice)
+			else:
+				interpreter = PDFPageInterpreter(self.rsrcmgr, self.device)
+
 			for page in PDFPage.get_pages(fp, set([pageno-1]), maxpages=self.maxpages, 
 				password=self.password, caching=self.caching, check_extractable=False):
 
@@ -146,12 +163,15 @@ class PDFHandler(object):
 			fp.close()
 			return ""
 
-	def GetPages(self,fname,pagenos=[1]):
+	def GetPages(self,fname,pagenos=[1],html=False):
 		'''Get Several Page contents of PDF, return string
 		Default first page'''	
 		fp = file(fname, 'rb')
 		try:
-			interpreter = PDFPageInterpreter(self.rsrcmgr, self.device)
+			if (html):
+				interpreter = PDFPageInterpreter(self.rsrcmgr, self.htmldevice)
+			else:
+				interpreter = PDFPageInterpreter(self.rsrcmgr, self.device)
 
 			for page in PDFPage.get_pages(fp, set([i-1 for i in pagenos]), maxpages=self.maxpages, 
 				password=self.password, caching=self.caching, check_extractable=False):
@@ -167,11 +187,14 @@ class PDFHandler(object):
 			fp.close()
 			return ""
 
-	def GetAllPages(self,fname):
+	def GetAllPages(self,fname,html=False):
 		'''Get All Page contents of PDF, return string'''	
 		fp = file(fname, 'rb')
 		try:
-			interpreter = PDFPageInterpreter(self.rsrcmgr, self.device)
+			if (html):
+				interpreter = PDFPageInterpreter(self.rsrcmgr, self.htmldevice)
+			else:
+				interpreter = PDFPageInterpreter(self.rsrcmgr, self.device)
 
 			for page in PDFPage.get_pages(fp, set(), maxpages=self.maxpages, 
 				password=self.password, caching=self.caching, check_extractable=False):

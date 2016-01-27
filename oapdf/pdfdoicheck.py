@@ -22,6 +22,61 @@ except (ImportError,ValueError) as e:
 
 escaper=HTMLParser()
 
+###### Function
+
+fsre=re.compile(r'font-size:.*?px')
+def fontsize2int(s):
+	fs=fsre.search(s)
+	try:
+		if fs:
+			return int(fs.group().replace('font-size:','').replace('px',''))
+		else:
+			return -1
+	except:
+		return -1
+
+def getlargefontsize(s,cutoff=0.85):
+	results=fsre.findall(s)
+	setfs=set(results)
+	listints=[ fontsize2int(i) for i in setfs]
+	listints.sort()
+	print listints
+	outdict={}
+
+	total=0
+	for i in setfs:
+		ci=results.count(i)
+		total+=ci
+		outdict[fontsize2int(i)]=ci
+	print outdict
+
+	fless=0
+	limitsize=0
+	for i in listints:
+		fless+=outdict[i]
+		if fless>total*cutoff:
+			limitsize=i+1
+			break
+	print "Limit Font size", limitsize
+	return limitsize
+
+def fontsizestr(s,cutoff=0.85,fontsize=0):
+	if (fontsize>0):
+		limitsize=fontsize
+	else:
+		limitsize=getlargefontsize(cutoff)
+	bs=BeautifulSoup(s)
+	bss=bs.findChildren('span')
+	outstr=''
+	for i in bss:
+		if (fontsize2int( i.get('style','') ) >= limitsize):
+			if (i.text):
+				outstr+=i.text+' '
+	#nstr= normalizeString(outstr)
+	print outstr
+	return outstr
+
+
 ###### PDFdoiCheck class
 
 class PDFdoiCheck(object):
@@ -209,7 +264,7 @@ class PDFdoiCheck(object):
 	def totalpages(self,pages):
 		'''To get total page from record pages'''
 		if (not pages or not pages.strip()):
-			return 1
+			return 0
 
 		ps=pages.split('-')
 		if (len(ps) == 2):
@@ -222,9 +277,11 @@ class PDFdoiCheck(object):
 				else:
 					# Can't parse
 					return 0
-		else:
+		elif (len(ps) == 1):
 			#Only first page
 			return -1
+		else:
+			return 0
 
 	######### Start to judge ######################
 	def hascontent(self,text, similarity=0.95,page=None):
@@ -515,11 +572,13 @@ class PDFdoiCheck(object):
 				print e, cr.pages
 
 			totalpagewrong=False
+			#print "pages:",self.maxpage,' in crossref:',cr.pages,totalpagenumber
 			if totalpagenumber>0 and not (self.maxpage >= totalpagenumber and self.maxpage <= totalpagenumber+2):
 				totalpagewrong=True
 				# When paper with supporting information
 				if (self.maxpage > totalpagenumber+2):
-					if (self.withSI or self.findtext('Supporting Information', page=[totalpagenumber+1,totalpagenumber+2])):
+					if (self.withSI or (self.findtext('Supporting Information', page=[totalpagenumber+1,totalpagenumber+2])
+						and self.findtext(cr.title, similarity=0.75, page=[totalpagenumber+1,totalpagenumber+2]))):
 						if not recursive : self.finddoi(totalpagenumber);
 						totalpagewrong=False
 
@@ -619,7 +678,7 @@ class PDFdoiCheck(object):
 				# DOI maybe not exist ....
 				if (titlevalid):
 					# Old paper don't have doi...
-					if len(self.doi) is 0:
+					if len(self.doi) is 0 and totalpagenumber>0:
 						if (crscore['total'] >= 0.4):
 							if not justcheck: self.moveresult(0)
 							return 0
@@ -632,14 +691,28 @@ class PDFdoiCheck(object):
 						elif (titleeval[1]>=0.90 and crscore['pages']>=0.9 and crscore['year']>=0.9 and (crscore['journal']>=0.9 or crscore['issn']>=0.9)):
 							if not justcheck: self.moveresult(0)
 							return 0
-						elif (titleeval[1]>=0.90 and crscore['pages']>=0.5 and crscore['year']>=0.9 and (crscore['journal']>=0.9 or crscore['issn']>=0.9) and crscore['authors']>=0.8):
+						elif (titleeval[1]>=0.90 and crscore['pages']>=0.5 and crscore['year']>=0.9 and (crscore['journal']>=0.9 or crscore['issn']>=0.9) and crscore['authors']>=0.7):
 							if not justcheck: self.moveresult(0)
 							return 0	
 						else:
 							print "Title/Paper score:",titleeval[1],crscore,self._fname
 							if not justcheck: 
 								self.moveresult(2,printstr="OK title and high info fit. But no doi(Unsure): "+self._fname)
-							return 2					
+							return 2
+					elif len(self.doi) is 0 and totalpagenumber== -1:
+						if (titleeval[1]>=0.90 and crscore['pages']>=0.5 and crscore['year']>=0.9 and (crscore['journal']>=0.9 or crscore['issn']>=0.9) and crscore['authors']>=0.7):
+							if not justcheck: self.moveresult(0)
+							return 0
+						else:
+							print "Title/Paper score:",titleeval[1],crscore,self._fname
+							if not justcheck: 
+								self.moveresult(2,printstr="OK title and high info fit. But no doi and no total pages(Unsure): "+self._fname)
+							return 2												
+					elif len(self.doi) is 0 and totalpagenumber<=0:
+						print "Title/Paper score:",titleeval[1],crscore,self._fname
+						if not justcheck: 
+							self.moveresult(2,printstr="OK title and high info fit. But no doi and no total pages(Unsure): "+self._fname)
+						return 2						
 					
 					### Old method check old items:
 					#if (self.checkcrossref(cr)):
@@ -695,3 +768,10 @@ class PDFdoiCheck(object):
 			if not justcheck: 
 				self.moveresult(6,"Error DOI fname(Fail):"+self._fname)
 			return 6
+
+	def removegarbage(self,fname,cutoff=0.85,fontsize=0):
+		'''Remove patents, supporting informations files'''
+		s=self.handle.GetPages(self._fname,pagenos=[1,2,3],html=True)
+		print fontsizestr(s,cutoff=cutoff,fontsize=fontsize)
+
+
