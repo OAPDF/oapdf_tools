@@ -79,7 +79,7 @@ class CRrecord(Jrecord):
 			elif (len(self.title) is 0):
 				print "Strang blank title when crossref...: "+doi
 				self.title=''
-			self.year=str(data['issued'].get('date-parts',[[1111,1,1]])[0][0])
+			self.year=str(data.get('issued',{'date-parts':[[1111,1,1]]}).get('date-parts',[[1111,1,1]])[0][0])
 			self.volume=data.get('volume','')
 			self.issue=data.get('issue','')
 			self.pages=data.get('page','')
@@ -131,7 +131,7 @@ class CRrecord(Jrecord):
 				# should better then cutoff
 				if (float(data['score'])>cutoff):
 					self.title=data.get('title',[''])[0]
-					self.year=str(data['issued'].get('date-parts',[[1111,1,1]])[0][0])
+					self.year=str(data.get('issued',{'date-parts':[[1111,1,1]]}).get('date-parts',[[1111,1,1]])[0][0])
 					self.volume=data.get('volume','')
 					self.issue=data.get('issue','')
 					self.pages=data.get('page','')

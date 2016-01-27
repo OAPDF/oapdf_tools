@@ -12,12 +12,12 @@ from HTMLParser import HTMLParser
 try:
 	from .doi import DOI
 	from .pdfhandler import PDFHandler
-	from .basic import normalizeString,strsimilarity,strdiff
+	from .basic import normalizeString,strsimilarity,strdiff,removeunicode
 	from .crrecord import CRrecord
 except (ImportError,ValueError) as e:
 	from doi import DOI
 	from pdfhandler import PDFHandler
-	from basic import normalizeString,strsimilarity,strdiff
+	from basic import normalizeString,strsimilarity,strdiff,removeunicode
 	from crrecord import CRrecord
 
 escaper=HTMLParser()
@@ -33,7 +33,6 @@ class PDFdoiCheck(object):
 		self.didpage=set()
 		self.normaltxt=[]
 		self.reset(fname)
-		self.nowdoi=''
 		
 	@property
 	def fname(self):
@@ -44,7 +43,6 @@ class PDFdoiCheck(object):
 		!!Important: You should set the fname when you deal with another file!!!'''
 		self.handle.reset()
 		self.doi.clear()
-		self.nowdoi=''
 		self.didpage.clear()
 		if (isinstance(self.normaltxt,str)):
 			del self.normaltxt
@@ -101,18 +99,27 @@ class PDFdoiCheck(object):
 		except WindowsError as e:
 			os.system("mv '"+self._fname+"' '"+newdir+"'")
 
-	judgedirs={0: 'Done' , 1: 'High', 2: 'Unsure', 3: 'Untitle', 4: 'Fail', 5: 'Page0', 6: 'ErrorDOI',-1:'Unknow'}
-	def moveresult(self,judgenum,printstr=None):
-		'''move to new dir'''
+	judgedirs={0: 'Done' , 1: 'High', 2: 'Unsure', 3: 'Untitle', 4: 'Fail', 5: 'Page0', 6: 'ErrorDOI',10:'Unknow'}
+	def moveresult(self, judgenum, printstr=None,newfname=''):
+		'''move to new dir and even new file name'''
+		fname=self._fname
+		if (newfname):
+			fname=newfname
 		if not self._fname: 
 			print "File Name Not Set!!!"
 			return
-		fbasic=os.path.split(self._fname)[1]
-		newdir=judgedirs.get(judgenum,'Unknow')
+		fbasic=os.path.split(fname)[1]
+		newdir=self.judgedirs.get(judgenum,'Unknow')
+
 		if (printstr): 
 			print printstr
-		else:
-			print "Try move file",fbasic,'to dir',newdir
+		elif(judgenum != 0):
+			print "Try move file",self._fname,'to dir',newdir
+			if (newfname):
+				print "(Rename) to",fbasic
+		elif (newfname):
+			print "(Rename) file",self._fname,'to',newdir+os.sep+newfname
+
 		try:
 			if(os.path.exists(newdir+os.sep+fbasic)):
 				"File exists from "+self._fname+" to dir"+newdir
@@ -120,7 +127,8 @@ class PDFdoiCheck(object):
 			os.renames(self._fname,newdir+os.sep+fbasic)
 			self._fname=newdir+os.sep+fbasic
 		except WindowsError as e:
-			os.system("mv '"+self._fname+"' '"+newdir+"'")
+			print e
+			#os.system("mv '"+self._fname+"' '"+newdir+os.sep+fbasic+"'")
 
 	def doiresultprocess(self,dois):
 		'''Very important to deal with found dois....'''
@@ -131,6 +139,9 @@ class PDFdoiCheck(object):
 			else:
 				newdois.append(d.strip().lower())
 		return newdois	
+
+	def pdfcontextpreprocess(self,text):
+		return removeunicode(text.lower().replace('doi:',' ').replace("\xe2\x80\x93",'-').replace("\xe5\x85\xbe","/"))
 
 	def finddoi(self,page=1):
 		'''Find doi in given page number
@@ -146,8 +157,8 @@ class PDFdoiCheck(object):
 			page=int(page)
 		if (isinstance(page,int)):
 			if (page <= 0 ):
-				outstr=self.handle.GetAllPages(self._fname)
-				self.doi.update(self.doiresultprocess(self.pdoi.findall(outstr.lower().replace("doi:"," "))))
+				outstr=self.pdfcontextpreprocess(self.handle.GetAllPages(self._fname))
+				self.doi.update(self.doiresultprocess(self.pdoi.findall(outstr)))
 				self.normaltxt=normalizeString(outstr).lower().strip().replace(' ','')
 				self.didpage.update(range(1,self.maxpage+1))
 			# Only valid page
@@ -155,8 +166,8 @@ class PDFdoiCheck(object):
 				page=self.maxpage
 			# Only page not process before
 			if (page not in self.didpage):
-				outstr=self.handle.GetSinglePage(self._fname,page)
-				self.doi.update(self.doiresultprocess(self.pdoi.findall(outstr.lower().replace("doi:"," "))))
+				outstr=self.pdfcontextpreprocess(self.handle.GetSinglePage(self._fname,page))
+				self.doi.update(self.doiresultprocess(self.pdoi.findall(outstr)))
 				self.normaltxt[page-1]=normalizeString(outstr).lower().strip().replace(' ','')
 				self.didpage.add(page)
 		elif ( isinstance(page,list) or isinstance(page,tuple) or isinstance(page,set)):
@@ -165,6 +176,9 @@ class PDFdoiCheck(object):
 
 	def totalpages(self,pages):
 		'''To get total page from record pages'''
+		if (not pages or not pages.strip()):
+			return 1
+
 		ps=pages.split('-')
 		if (len(ps) == 2):
 			if (ps[0].isdigit() and ps[1].isdigit()):
@@ -192,11 +206,12 @@ class PDFdoiCheck(object):
 			return (False,0.0)
 		if (len(text)<3):
 			return (False,0.0)
-		elif (len(text)==3):
-			perfect=text in self.normaltxt[page-1]
-			return (perfect,float(perfect)/2)
+
 		try:
 			if (not page or (isinstance(page,int) and (page>self.maxpage or page<=0))):
+				if (len(text)==3):
+					perfect=text in ''.join(self.normaltxt)
+					return (perfect,float(perfect)/2)
 				if (similarity<1.0):
 					sim=strsimilarity(''.join(self.normaltxt),text)
 					return (sim >= similarity,sim)
@@ -204,6 +219,9 @@ class PDFdoiCheck(object):
 					perfect=text in ''.join(self.normaltxt)
 					return (perfect,float(perfect))
 			elif (isinstance(page,int)):
+				if (len(text)==3):
+					perfect=text in self.normaltxt[page-1]
+					return (perfect,float(perfect)/2)
 				if (similarity<1.0):
 					sim=strsimilarity(self.normaltxt[page-1],text)
 					return (sim >= similarity,sim)
@@ -261,14 +279,19 @@ class PDFdoiCheck(object):
 				return False
 		return False
 
-	def checkdoi(self,doi,page=1,iterfind=True):
+	def checkdoi(self,doi,page=1,iterfind=True,justcheck=False):
 		'''Check whether doi in given page'''
 		if not self._fname: 
 			print "File Name Not Set!!!"
 			return False
-		self.finddoi(page)
+		# Find or just check in self.doi
+		if (not justcheck): self.finddoi(page)
+
 		if (doi in self.doi):
 			return True
+		elif (justcheck):
+			return False
+		# When not justcheck and iterfind 2 and last page
 		elif (iterfind and page is 1 and self.maxpage is not 1 and self.checkdoi(doi,2)):
 			return True
 		elif (iterfind and page is 2 and self.maxpage is not 2 and self.checkdoi(doi,self.maxpage)):
@@ -289,16 +312,16 @@ class PDFdoiCheck(object):
 		out2=re.sub(r"\n(?=[^\n])",'',outstr)
 		return (doi in out2)
 
-	def checkdoititle(self,doi,title,page=1):
-		'''Check whether doi and title in given page'''
-		return self.checkdoi(doi,page) and self.hascontent(title)
+	#def checkdoititle(self,doi,title,page=1):
+	#	'''Check whether doi and title in given page'''
+	#	return self.checkdoi(doi,page) and self.hascontent(title)
 
-	def checkdoifname(self,page=[1,2]):
-		'''Check whether fname's doi same to doi in file
-		Default check two pages'''
-		bname=os.path.splitext(os.path.basename(self._fname))[0].strip().lower()
-		fdoi=requests.utils.unquote(bname.replace('@','/'))
-		return self.checkdoi(fdoi,page)
+	#def checkdoifname(self,page=[1,2]):
+	#	'''Check whether fname's doi same to doi in file
+	#	Default check two pages'''
+	#	bname=os.path.splitext(os.path.basename(self._fname))[0].strip().lower()
+	#	fdoi=requests.utils.unquote(bname.replace('@','/'))
+	#	return self.checkdoi(fdoi,page)
 
 	def scorefitting(self,cr):
 		'''Score the PDF with the giving crossref record'''
@@ -338,7 +361,39 @@ class PDFdoiCheck(object):
 			print e
 			return {'total':0,'pages':0,'journal':0,'year':0,'authors':0,'issn':0}
 
-	def renamecheck(self,fname,wtitle=0.65,cutoff=0.85,justcheck=False,resetfile=True,fdoi=None):
+	def recursivedoicheck(self,excludedoi,olddoi,wtitle=0.65,cutoff=0.85,justcheck=False):
+		tryjudge=4
+		trydoi=""
+		rightdoi=[]
+		excludedoi.add(olddoi)
+		for doi in self.doi-excludedoi:
+			print "Recursive check doi..",self._fname,doi,
+			judgenum = self.renamecheck(self._fname,wtitle=wtitle,cutoff=cutoff,\
+			justcheck=True,resetfile=False,excludedoi=excludedoi,fdoi=doi)
+			excludedoi.add(doi)
+			if (judgenum is 0):
+				rightdoi.append(doi)
+				tryjudge=0
+			elif (judgenum<tryjudge):
+				trydoi=doi
+				tryjudge=judgenum
+			# else, retain 4 and blank doi
+		if (len(rightdoi) is 1):
+			doi=DOI(rightdoi[0])
+			if not justcheck:
+				self.moveresult(0,printstr=None,newfname=doi.quote()+".pdf")
+			return 0
+		elif (len(rightdoi) >= 2 ):
+			if not justcheck:
+				self.moveresult(3,printstr="Many DOIs are OK, can't distinguish...(Unsure)")
+			return 3 # Unsure
+		else:
+			print "Doesn't have reliable doi", self._fname
+			if not justcheck:
+				self.moveresult(tryjudge,printstr=None)
+			return tryjudge
+
+	def renamecheck(self,fname,wtitle=0.65,cutoff=0.85,justcheck=False,resetfile=True,fdoi=None,excludedoi=None):
 		'''A complex function to get doi from file name, 
 		check in crossref, check in pdf file, rename it!
 		just check can cancel move file'''
@@ -350,83 +405,128 @@ class PDFdoiCheck(object):
 		# 4: Fail
 		# 5: Page0
 		# 6: ErrorDOI
-		if (resetfile): self.reset(fname)
+		# 10: Unknow
+
+		# len(self.doi) is 1 and len(self.doi - excludedoi) is 1 : 
+		# :: First Run and perform check
+		# len(self.doi) is 1 or len(self.doi - excludedoi) is 1 :
+		if (not fname and not fdoi):
+			print "No given file name or doi! (Return 6)"
+			return 6
+
+		if (fname and not fdoi and excludedoi):
+			print "What do you want?! No excludedoi set by user! (Return 9)"
+			return 9
+
+		if (resetfile): 
+			self.reset(fname)
+
 		if (self.maxpage == 0):
-			if not justcheck: self.movetodir("Page0")
-			print "Error Page 0(Fail): "+self._fname
+			if not justcheck: 
+				self.moveresult(5, printstr="Error Page 0 (Page0, R5): "+self._fname)
 			return 5
+
+		if (not excludedoi):
+			excludedoi=set()
+
 		if (not fdoi):
 			fdoi=DOI(os.path.splitext(os.path.basename(self._fname))[0])
 		else:
 			fdoi=DOI(fdoi)
-		self.finddoi(1)
-		if (not fdoi):
-			if (len(self.doi) is 1):
-				print "Origin no fdoi but has one doi in file:",self._fname,
-				judgenum = self.renamecheck(self._fname,wtitle=wtitle,cutoff=cutoff,\
-					justcheck=True,resetfile=False,fdoi=list(self.doi)[0])
-				if not justcheck:
-					moveresult(judgenum,printstr=None)
-				#nodoi=DOI( list(self.doi)[0] )
-				#crno=CRrecord()
-				#crno=crno.valid_doi(nodoi,fullparse=True)
-				#if (crno):
-				#	if (self.checktitle(crno.title)[0]):
-				#	# Valid doi and title, rename file
-				#		if not justcheck: self.renamefile("Done/"+nodoi.quote()+".pdf")
-				#		return True
-				#	else:
-				#		print "OK doi in file but not title(Unsure): "+self._fname+" to: "+nodoi.quote()+".pdf"
-				#		if not justcheck: self.renamefile("Unsure/"+nodoi.quote()+".pdf")
-				#		return False
-				## Error doi
-				#else:
-				#	print "Error doi and title(Fail): "+self._fname
-				#	if not justcheck: self.movetodir("Fail")
-				#	return False
+
+		recursive= (len(excludedoi) > 0)
+		# If in recursive, don't move file!
+		if recursive: justcheck=True
+
+		# Only find DOI in first time!
+		if (not recursive and fdoi): 
+			self.finddoi(1)
+		elif (not recursive and not fdoi):
+			self.finddoi(set([1,2,self.maxpage]))
+
+		# file doi is shit..Recursively use doi in file or fail
+		if (not fdoi and not recursive):
+			if (len(self.doi) is 1 or len(self.doi) is 2):
+				print "Origin fdoi wrong but has 1/2 doi in file:",self._fname,
+				return self.recursivedoicheck(excludedoi,olddoi=fdoi,wtitle=wtitle,cutoff=wtitle,justcheck=justcheck)
+			# No doi or >2 dois in file
 			else:
-				print "0/too much doi. Can't sure(Fail): "+self._fname
-				if not justcheck: self.movetodir("Fail")
-				return False
+				if not justcheck: 
+					self.moveresult(4,printstr="Error fdoi and 0/too much doi. (Fail): "+self._fname)
+				return 4
+		elif (not fdoi and recursive):
+			print "doi (in recursion) may wrong with error doi. Should never happen.."
+			return 4 # Fail
+
 		# fdoi is ok
 		cr=CRrecord()
-		cr=cr.valid_doi(fdoi,fullparse=True)
+		try:
+			cr=cr.valid_doi(fdoi,fullparse=True)
+		except requests.exceptions.RequestException as e:
+			print e
+			cr=None
+		except Exception as e:
+			print e
+			cr=None		
+
+		# Error when year=None, improve in crrecord.
+		#if (cr and not cr.year):
+		#	cr.year='8888'	
 
 		#crossref is ok
 		if (fdoi and cr):
-			self.nowdoi=fdoi
 			totalpagenumber=1
 			try:
 				totalpagenumber=self.totalpages(cr.pages)
 			except ValueError as e:
+				# should never happen now
 				print e, cr.pages
 
 			totalpagewrong=False
 			if totalpagenumber>0 and not (self.maxpage >= totalpagenumber and self.maxpage <= totalpagenumber+2):
 				totalpagewrong=True
 
-			# Just check first page, faster.
-			doivalid=self.checkdoi(fdoi,page=1,iterfind=False)
+			if (totalpagewrong and recursive):
+				# Recursive but total page wrong. Fast end recursive
+				return 4
+
+			# Just check first page, not find(find before..), faster:
+			doivalid=self.checkdoi(fdoi,page=1,iterfind=False,justcheck=True)
 			titleeval=self.checktitle(cr.title)
 			if (totalpagenumber > 0 and not totalpagewrong):
 				if (doivalid and titleeval[0] and len(self.doi) is 1):
 					# Yes! Very Good PDF!
-					if not justcheck: self.movetodir("Done")
-					return True
+					if not justcheck: self.moveresult(0)
+					return 0
 
 			# Further check doi in page2/last, Finally, will check 1,2 and last pages.
-			doivalid= ( self.checkdoi(fdoi,page=2,iterfind=True) or doivalid )
+			if (recursive):
+				doivalid= ( self.checkdoi(fdoi,page=2,iterfind=True,justcheck=True) or doivalid )
+			else:
+				doivalid= ( self.checkdoi(fdoi,page=2,iterfind=True) or doivalid )
 
-			# Page wrong and doi can't make sure
-			if (len(self.doi)!=1 and totalpagewrong):
-				print "PDF Page",self.maxpage,"!=",totalpagenumber,"(Fail): "+self._fname
-				if not justcheck: self.movetodir("Fail")
-				return False
+			# Page wrong and try recursive use doi
+			if (totalpagewrong):
+				if (len(self.doi) is 1 or len(self.doi) is 2):
+					doi=DOI(list(self.doi)[0])
+					# DOI in file is same so error. Don't need recursive
+					if (len(self.doi) is 1 and doi == fdoi):
+						if not justcheck: 
+							self.moveresult(4,printstr="PDF Page "+str(self.maxpage)+"!="+str(totalpagenumber)+"(Fail): "+self._fname)
+						return 4
+
+					print 'Wrong total page with dois in file,',self._fname,fdoi,',try recursive'
+					return self.recursivedoicheck(excludedoi,olddoi=fdoi,wtitle=wtitle,cutoff=wtitle,justcheck=justcheck)
+				else:
+					if not justcheck: 
+						self.moveresult(4,printstr="PDF Page "+str(self.maxpage)+"!="+str(totalpagenumber)+"(Fail): "+self._fname)
+					return 4
 
 			if (not totalpagewrong):
 				crscore=self.scorefitting(cr)
 				titlevalid=False
 				try:
+					# Too old maybe lost information
 					if (int(cr.year)>1990):
 						titlevalid=titleeval[0] or (titleeval[1]*wtitle+crscore['total'])>=cutoff
 					else:
@@ -438,14 +538,26 @@ class PDFdoiCheck(object):
 				if (doivalid):
 					if (titlevalid):					
 						# Yes! Good PDF!
-						if not justcheck: self.movetodir("Done")
-						return True
-					else:
-						# DOI ok but not title
-						print "OK fdoi but not title(Untitle): "+self._fname
-						print "Title/Paper score:",titleeval[1],crscore,self._fname
-						if not justcheck: self.movetodir("Untitle")
-						return False
+						if not justcheck: self.moveresult(0)
+						return 0
+
+					print "Title/Paper score:",titleeval[1],crscore,self._fname
+					if (len(self.doi - set([fdoi])) == 1 and not recursive):
+						
+						# Try one more
+						newresult = self.recursivedoicheck(excludedoi,olddoi=fdoi,wtitle=wtitle,cutoff=wtitle,justcheck=True)
+						if (newresult is 0):
+							newdoi=DOI(list(self.doi - set([fdoi]))[0])
+							print 
+							if not justcheck: self.moveresult(0, 
+								printstr="(Rename)fdoi ok, but not title. In file doi "+newdoi+" is better for "+self._fname,
+								newfname=newdoi.quote()+".pdf")
+							return 0
+
+					# Else DOI ok but not title
+					if not justcheck: 
+						self.moveresult(3,printstr="OK fdoi but not title(Untitle): "+self._fname)
+					return 3
 				
 				# Indeed, doi maybe in pdf, but strange format..
 				if (self.checkdoinormaltxt(fdoi)):
@@ -453,104 +565,96 @@ class PDFdoiCheck(object):
 						# Further check only when title OK
 						if (self.checkdoifurther(fdoi)):
 							# Fine! move to Done dir
-							if not justcheck: self.movetodir("Done")
-							return True
+							if not justcheck: self.moveresult(0)
+							return 0
 						else:
 							# Can't find, but high similar! move to High dir
-							print "OK title and nospacebreak doi,but not pass(High): "+self._fname
-							if not justcheck: self.movetodir("High")
-							return False
+							if not justcheck: 
+								self.moveresult(1,printstr="OK title and nospacebreak doi,but not pass(High): "+self._fname)
+							return 1
 					else:
 						# DOI ok but not title
-						print "Maybe OK fdoi but not title(Untitle): "+self._fname
 						print "Title/Paper score:",titleeval[1],crscore,self._fname
-						if not justcheck: self.movetodir("Untitle")
-						return False						
+						if not justcheck: 
+							self.moveresult(3,printstr="Maybe OK fdoi but not title(Untitle): "+self._fname)
+						return 3						
 
 				# DOI maybe not exist ....
-				if (titlevalid):	
+				if (titlevalid):
 					# Old paper don't have doi...
-					if (self.checkcrossref(cr)):
-						if (len(self.doi) is 0 and crscore['total'] >= 0.4):
-							if not justcheck: self.movetodir("Done")
-							return True
-						elif (len(self.doi) is 0 and titleeval[1]>=0.85 and crscore['total'] >= 0.35):
-							if not justcheck: self.movetodir("Done")
-							return True
-						elif (len(self.doi) is 0 and titleeval[1]>=0.95 and crscore['total'] >=0.3):
-							if not justcheck: self.movetodir("Done")
-							return True
-						elif (len(self.doi) is 0 and titleeval[1]>=0.90 and crscore['pages']>=0.9 and crscore['year']>=0.9 and (crscore['journal']>=0.9 or crscore['issn']>=0.9)):
-							if not justcheck: self.movetodir("Done")
-							return True
-						elif (len(self.doi) is 0 and titleeval[1]>=0.90 and crscore['pages']>=0.5 and crscore['year']>=0.9 and (crscore['journal']>=0.9 or crscore['issn']>=0.9) and crscore['authors']>=0.8):
-							if not justcheck: self.movetodir("Done")
-							return True						
-						#elif (int(cr.year)<=1999 and len(self.doi) is 0):
-						#	# Highly possible right
-						#	if not justcheck: self.movetodir("High")
-						#	return True
-						#  Bentham, often blank doi
-						#elif (fdoi[:8] == '10.2174/' and len(self.doi) is 0):
-						#	if not justcheck: self.movetodir("Done")
-						#	return True
-						elif (len(self.doi) is 0):
-							print "Title/Paper score:",titleeval[1],crscore,self._fname
-							print "OK title and high info fit. But no doi(Highly): "+self._fname
-							if not justcheck: self.movetodir("High")
-							return True							
+					if len(self.doi) is 0:
+						if (crscore['total'] >= 0.4):
+							if not justcheck: self.moveresult(0)
+							return 0
+						elif (titleeval[1]>=0.85 and crscore['total'] >= 0.35):
+							if not justcheck: self.moveresult(0)
+							return 0
+						elif (titleeval[1]>=0.95 and crscore['total'] >=0.3):
+							if not justcheck: self.moveresult(0)
+							return 0
+						elif (titleeval[1]>=0.90 and crscore['pages']>=0.9 and crscore['year']>=0.9 and (crscore['journal']>=0.9 or crscore['issn']>=0.9)):
+							if not justcheck: self.moveresult(0)
+							return 0
+						elif (titleeval[1]>=0.90 and crscore['pages']>=0.5 and crscore['year']>=0.9 and (crscore['journal']>=0.9 or crscore['issn']>=0.9) and crscore['authors']>=0.8):
+							if not justcheck: self.moveresult(0)
+							return 0	
 						else:
-							print "OK title and high info fit. But doi exist not fit(Unsure): "+self._fname
-							if not justcheck: self.movetodir("Unsure")
-							return False								
-					elif(len(self.doi) is 0):
-						# Maybe wrong file no doi
-						print "Not found doi in file but ok title (Unsure): "+self._fname
-						if not justcheck: self.movetodir("Unsure")
-						return False
+							print "Title/Paper score:",titleeval[1],crscore,self._fname
+							if not justcheck: 
+								self.moveresult(2,printstr="OK title and high info fit. But no doi(Unsure): "+self._fname)
+							return 2					
+					
+					### Old method check old items:
+					#if (self.checkcrossref(cr)):
+					#	if (int(cr.year)<=1999 and len(self.doi) is 0):
+					#		# Highly possible right
+					#		if not justcheck: self.movetodir("High")
+					#		return True
+					#	  Bentham, often blank doi
+					#	elif (fdoi[:8] == '10.2174/' and len(self.doi) is 0):
+					#		if not justcheck: self.movetodir("Done")
+					#		return True
+					#	elif (len(self.doi) is 0):
+					#		print "Title/Paper score:",titleeval[1],crscore,self._fname
+					#		if not justcheck: 
+					#			self.moveresult(1,printstr="OK title and high info fit. But no doi(Highly): "+self._fname)
+					#		return 1							
+					#	else:
+					#		if not justcheck: 
+					#			self.moveresult(2,printstr="OK title and high info fit. But doi exist not fit(Unsure): "+self._fname)
+					#		return 2								
+					#elif(len(self.doi) is 0):
+					#	# Maybe wrong file and no doi
+					#	if not justcheck: 
+					#		self.moveresult(2,printstr="Not found doi in file but ok title (Unsure): "+self._fname)
+					#	return 2
 
 			#fdoi,title wrong, no doi in file
-			if (len(self.doi) is 0):
-				print "Both fdoi and title wrong, no doi in file(Fail): "+self._fname
-				if not justcheck: self.movetodir("Fail")
-				return False
+			# Or in recursive mode
+			if (len(self.doi) is 0 or recursive):
+				if not justcheck: 
+					self.moveresult(4,printstr="Both fdoi and title wrong, no doi in file(Fail): "+self._fname)
+				return 4
 
-			# Indeed, file has only one doi, not the same to fname
-			if (len(self.doi) is 1):
-				newdoi=DOI( list(self.doi)[0] )
-				newcr=CRrecord()
-				newcr=newcr.valid_doi(newdoi,fullparse=True)
-				if (newcr):
-					crpages=newcr.pages.split('-')
-					totalpagenumber=1
-					if (len(crpages) ==2 ):
-						try:
-							totalpagenumber=self.totalpages(newcr.pages)
-						except ValueError as e:
-							print e, crpages
-					if (self.checktitle(newcr.title) and self.maxpage >= totalpagenumber and self.maxpage <= totalpagenumber+2):
-					# Valid doi and title, rename file, then recheck it
-						print "OK: Rename file from "+self._fname+" to "+newdoi.quote()+".pdf"
-						if not justcheck: self.renamefile("Done"+os.sep+newdoi.quote()+".pdf")
-						return True
-					else:
-						print "One in-file doi but not title(Unsure): "+self._fname
-						if not justcheck: self.movetodir("Unsure")
-						return False
-				# Error doi
-				else:
-					print "Error doi and title(Fail): "+self._fname
-					if not justcheck: self.movetodir("Fail")
-					return False
+			# Indeed, file has only one more doi, not the same to fname
+			if (len(self.doi - set([fdoi])) is 1 ):
+				print 'Fail fdoi/title. Paper with one more doi in file,',self._fname,',try recursive'
+				return self.recursivedoicheck(excludedoi,olddoi=fdoi,wtitle=wtitle,cutoff=wtitle,justcheck=justcheck)
 			elif(len(self.doi) > 1):
-				print "fdoi/title fail. Too much infile doi(Unsure): "+self._fname
-				if not justcheck: self.movetodir("Unsure")
-				return False
+				if not justcheck: 
+					self.moveresult(2,printstr="fdoi/title fail. Too much infile doi(Unsure): "+self._fname)
+				return 2
 			else:
-				print "What?????What?????(Fail):"+self._fname
-				if not justcheck: self.movetodir("Fail")
-				return False
-		elif not cr:
-			print "Error DOI fname(Fail):"+self._fname
-			if not justcheck: self.movetodir("ErrorDOI")
-			return False
+				if not justcheck: 
+					self.moveresult(4,printstr="What????? What?????(Fail):"+self._fname)
+				return 4
+		# not cr
+		else:
+			if (not recursive):
+				self.finddoi(set([1,2,self.maxpage]))
+				if (len(self.doi) is 1 or len(self.doi) is 2):
+					print 'Error DOI filename,',self._fname,',try recursive'
+					return self.recursivedoicheck(excludedoi,olddoi=fdoi,wtitle=wtitle,cutoff=wtitle,justcheck=justcheck)				
+			if not justcheck: 
+				self.moveresult(6,"Error DOI fname(Fail):"+self._fname)
+			return 6
