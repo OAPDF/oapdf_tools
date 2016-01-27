@@ -33,6 +33,7 @@ class PDFdoiCheck(object):
 		self.didpage=set()
 		self.normaltxt=[]
 		self.reset(fname)
+		self.withSI=False
 		
 	@property
 	def fname(self):
@@ -51,6 +52,7 @@ class PDFdoiCheck(object):
 			del self.normaltxt[:]
 		self.maxpage=0
 		self._fname=""
+		self.withSI=False
 		if (not fname):
 			return
 		if (os.path.exists(fname) and os.path.splitext(fname)[1].lower()==".pdf"):
@@ -142,6 +144,36 @@ class PDFdoiCheck(object):
 
 	def pdfcontextpreprocess(self,text):
 		return removeunicode(text.lower().replace('doi:',' ').replace("\xe2\x80\x93",'-').replace("\xe5\x85\xbe","/"))
+
+	def findtext(self,text,page=1):
+		'''Just Find text in Page, Don't search doi and save it'''
+		if not self._fname: 
+			print "File Name Not Set!!!"
+			return ""
+		if (self.maxpage is 0):
+			print 'Error max page 0 for '+self._fname
+			return ""
+		if (isinstance(page,str) or isinstance(page,float) ):
+			page=int(page)
+		normaltxt=""
+		if (isinstance(page,int)):
+			if (page<=0):
+				page=1
+			# Only valid page
+			if (page>self.maxpage): 
+				page=self.maxpage
+			# Only page not process before
+			if (not self.normaltxt[page-1] ):
+				outstr=self.pdfcontextpreprocess(self.handle.GetSinglePage(self._fname,page))
+				self.normaltxt[page-1]=normalizeString(outstr).lower().strip().replace(' ','')
+			return self.hascontent(text,page=page)[0]
+		elif ( isinstance(page,list) or isinstance(page,tuple) or isinstance(page,set)):
+			outyn=False
+			for i in page:
+				outyn= self.findtext(text,i)
+				if (outyn):
+					break
+			return outyn
 
 	def finddoi(self,page=1):
 		'''Find doi in given page number
@@ -485,9 +517,14 @@ class PDFdoiCheck(object):
 			totalpagewrong=False
 			if totalpagenumber>0 and not (self.maxpage >= totalpagenumber and self.maxpage <= totalpagenumber+2):
 				totalpagewrong=True
+				# When paper with supporting information
+				if (self.maxpage > totalpagenumber+2):
+					if (self.withSI or self.findtext('Supporting Information', page=[totalpagenumber+1,totalpagenumber+2])):
+						if not recursive : self.finddoi(totalpagenumber);
+						totalpagewrong=False
 
-			if (totalpagewrong and recursive):
-				# Recursive but total page wrong. Fast end recursive
+			# Recursive but total page wrong. Fast end recursivedoicheck
+			if (totalpagewrong and recursive):	
 				return 4
 
 			# Just check first page, not find(find before..), faster:
