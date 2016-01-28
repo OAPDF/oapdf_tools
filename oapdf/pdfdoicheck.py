@@ -581,6 +581,7 @@ class PDFdoiCheck(object):
 				totalpagewrong=True
 				# When paper with supporting information
 				if (self.maxpage > totalpagenumber+2):
+					self.finddoi(page=2)
 					if (self.withSI or (self.findtext('Supporting Information', page=[totalpagenumber+1,totalpagenumber+2])
 						and self.findtext(cr.title, similarity=0.75, page=[totalpagenumber+1,totalpagenumber+2]))):
 						if not recursive : self.finddoi(totalpagenumber);

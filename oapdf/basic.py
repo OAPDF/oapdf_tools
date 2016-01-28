@@ -51,12 +51,12 @@ def strsimilarity(longstr,shortstr,maxdistance=20,algorithm=2):
 			elif(item[0] == 'insert'):
 				deld=None
 				for d in deleseq:
-					if (abs(d[1]-d[0]-item[3]+item[4])<=3):
+					if (abs(d[1]-d[0]+item[3]-item[4])<=3):
 						dres=SM.find_longest_match(d[0],d[1],item[3],item[4])
 						length+=dres[2]
 						deld=d
 						break
-				deleseq.remove(deld)
+				if (deld): deleseq.remove(deld)
 		return float(length)/len(shortstr)
 
 
