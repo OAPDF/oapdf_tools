@@ -58,6 +58,9 @@ if __name__ == "__main__":
 	parser.add_option("-c", "--checkpdf", action="store_true", 
 					dest="checkpdf", default=False,
 					help="To check and rename pdf file in currenct directory")
+	parser.add_option("--morecheck", action="store_true", 
+					dest="morecheck", default=False,
+					help="To more check and remove Patent/SI pdf file in currenct directory")
 	parser.add_option("--endnote", action="store", 
 					dest="endnote", default="",
 					help="Process Endnote XML")
@@ -78,6 +81,16 @@ if __name__ == "__main__":
 		for f in glob.iglob("*.pdf"):
 			f=__doifilerename(f)
 			dpf.renamecheck(f)
+			sys.stdout.flush()
+		sys.exit(0)
+
+	if (options.morecheck):
+		##### Check and rename doi file
+		dpf=PDFdoiCheck()
+		for f in glob.iglob("*.pdf"):
+			f=__doifilerename(f)
+			dpf.reset(f)
+			dpf.removegarbage(f)
 			sys.stdout.flush()
 		sys.exit(0)
 

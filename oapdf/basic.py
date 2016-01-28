@@ -29,22 +29,36 @@ def strsimilarity(longstr,shortstr,maxdistance=20,algorithm=2):
 				lastposition=item[0]+item[2]	
 		return float(length)/len(shortstr)
 	else:
-		matching=difflib.SequenceMatcher(None,longstr,shortstr).get_opcodes()
+		SM=difflib.SequenceMatcher(None,longstr,shortstr)
+		matching=SM.get_opcodes()
 		length=0
 		lastposition=-1
+		deleseq=[]
 		for item in matching:
 			if (item[0] == 'equal'):
 				if (lastposition ==-1):
 					length+=item[4]-item[3]
 					lastposition=item[2]
-				elif (item[1]-lastposition <=maxdistance):
+				elif (item[1]-lastposition <=len(shortstr)):
 					length+=item[4]-item[3]
 					lastposition=item[2]
 				else:
 					break
 			elif(item[0] == 'replace'):
 				lastposition=item[2]
-		return float(length)/len(shortstr)								
+			elif(item[0] == 'delete'):
+				deleseq.append([item[1],item[2]])
+			elif(item[0] == 'insert'):
+				deld=None
+				for d in deleseq:
+					if (abs(d[1]-d[0]-item[3]+item[4])<=3):
+						dres=SM.find_longest_match(d[0],d[1],item[3],item[4])
+						length+=dres[2]
+						deld=d
+						break
+				deleseq.remove(deld)
+		return float(length)/len(shortstr)
+
 
 def removeunicode(s):
 	'''Remove non-ascii char'''

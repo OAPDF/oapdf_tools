@@ -1,26 +1,21 @@
 #! /usr/bin/env python
 # -*- coding: utf-8 -*-
-# Last Update
+# Last Update: 2016.1.28 - 2:15AM
 
 '''DOI class '''
 
-import os,sys
-import re,difflib,requests,urllib2
+import os,sys,re,difflib
+import requests
 
-#try:
-#	from .crrecord import CRrecord
-#except (ImportError,ValueError) as e:
-#	from crrecord import CRrecord
+TIMEOUT_SETTING=30
 
-timeout_setting=30
-
-######################## Part2: DOI ###########################
 ################ DOI class ############################
 class DOI(str):
 	'''A class for standard DOI. 
 	It should contain "10." and / or @, Else: it will be blank 
 	if doi is quote, it will unquote when generate'''
-	pdoi=re.compile("\\b(10[.][0-9]{4,}(?:[.][0-9]+)*/(?:(?![\|\"&\'<>])\\S)+)(?:\+?|\\b)")
+
+	pdoi=re.compile("(?:\:|\\b)(10[.][0-9]{4,}(?:[.][0-9]+)*/(?:(?![\|\"&\'<>])\\S)+)(?:\+?|\\b)")
 	def __new__(self,doi=""):
 		'''Should be 10.*/ or 10.*@ 
 		Normalize(lower,strip)
@@ -46,8 +41,15 @@ class DOI(str):
 		else:
 			self.suffix=""
 		#article object
-		self.record=None
-		self.url=""
+		self.crjson=None
+		self._url=""
+
+	@property
+	def url(self):
+		'''Get URL property'''
+		if not self._url:
+			self._url=self.geturl()
+		return self._url
 
 	def quote(self,doi=None):
 		'''Quote it to file name format'''
@@ -104,11 +106,12 @@ class DOI(str):
 		'''Get the doi article url''' 
 		if (not doi):
 			doi=self
-			if (doi.url): return doi.url
+			if (self._url): return self._url
 		else:
 			doi=self.unquote(doi)
-		r=requests.get("http://dx.doi.org/"+doi,timeout=timeout_setting)
+		r=requests.get("http://dx.doi.org/"+doi,timeout=TIMEOUT_SETTING)
 		if (r.status_code is 200):
+			self._url=r.url
 			return r.url
 		else:
 			return ""
@@ -116,7 +119,7 @@ class DOI(str):
 	def is_oapdf(self,doi=None):
 		'''Check the doi is in OAPDF library'''
 		if (not doi):
-			r=requests.get("http://oapdf.github.io/doilink/pages/"+self.decompose(url=True,outdir=False)+".html",timeout=timeout_setting)
+			r=requests.get("http://oapdf.github.io/doilink/pages/"+self.decompose(url=True,outdir=False)+".html",timeout=TIMEOUT_SETTING)
 			return (r.status_code is 200)
 		else:
 			return DOI(doi).is_oapdf()
@@ -124,47 +127,87 @@ class DOI(str):
 	def has_oapdf_pdf(self,doi=None):
 		'''Check whether the doi has in OAPDF library'''
 		doi = DOI(doi) if doi else self
-		try:#urllib maybe faster then requests
-			r=urllib2.urlopen("http://oapdf.github.io/doilink/pages/"+self.prefix+"/path/"+self.quote()+".html",timeout=timeout_setting)
-			return (r.code is 200)
-		except:
+		try:
+			r=requests.get("http://oapdf.github.io/doilink/pages/"+self.prefix+"/path/"+self.quote()+".html",timeout=TIMEOUT_SETTING)
+			return (r.status_code is 200)
+		except Exception as e:
+			print e
 			return False
 
 	def valid_doaj(self,doi=None):
 		'''Valid the DOI is Open Access by DOAJ'''
 		doi = self.unquote(doi) if doi else self
-		r=requests.get('https://doaj.org/api/v1/search/articles/doi:'+doi,timeout=timeout_setting)
+		try:
+			r=requests.get('https://doaj.org/api/v1/search/articles/doi:'+doi,timeout=TIMEOUT_SETTING)
+		except Exception as e:
+			print e
+			return False
 		return r.json().get('total',0)>0
 
 	def valid_doiorg(self,doi=None,geturl=False):
 		'''Valid DOI is OK in dx.doi.org'''
 		doi = self.unquote(doi) if doi else self
-		r=requests.get("http://dx.doi.org/"+doi,allow_redirects=geturl,timeout=timeout_setting)
+		r=requests.get("http://dx.doi.org/"+doi,allow_redirects=geturl,timeout=TIMEOUT_SETTING)
 		if (geturl and r.status_code is 200): self.url=r.url
 		return (r.status_code != 404)
-
-	## Following function move to crrecord class
-	#def valid_crossref(self,doi=None,fullparse=False):
-	#	'''Valid DOI is OK in crossref, 
-	#	return a CrossRef record. Default not parse all record'''
-	#	doi = self.unquote(doi) if doi else self
-	#	cr=CRrecord()
-	#	if (cr.getfromdoi(doi,fullparse=fullparse)):
-	#		self.record=cr
-	#		return cr
-	#	return None		
 
 	def gettitle(self,doi=None):
 		'''Get the doi title, may be faster than valid_crossref'''
 		doi = self.unquote(doi) if doi else self
-		r=requests.get("http://api.crossref.org/works/"+doi,timeout=timeout_setting)
+		if not self.crjson: self.getcrossref()
+		if (self.crjson):
+			return self.crjson.get('message','{}').get('title',[''])[0]
+		print "Error doi (DOI.gettile)! "+doi 
+		return ""
+
+	def getcrossref(self,doi=None):
+		'''Return the json result of crossref api'''
+		doi = self.unquote(doi) if doi else self
+		r=requests.get("http://api.crossref.org/works/"+doi,timeout=TIMEOUT_SETTING)
 		if (r.status_code is 200):
-			title=r.json()['message'].get('title',[''])[0]
-			return title
+			self.crjson=r.json()
+			return self.crjson
+		print "Error doi (DOI.gettile)! "+doi
+		self.crjson={} 
+		return self.crjson
+
+	def getbibtex(self,doi=None):
+		'''Get the bibtex result *.bib file context'''
+		doi = self.unquote(doi) if doi else self
+		header={'Accept':'application/x-bibtex'}
+		r=requests.get("http://dx.doi.org/"+doi,headers=header,timeout=TIMEOUT_SETTING)
+		if (r.status_code is 200):
+			return r.text
+		print "Error doi (DOI.gettile)! "+doi 
+		return ""
+
+	def getendnote(self,doi=None):
+		'''Get the endnote result *.ris file context'''
+		doi = self.unquote(doi) if doi else self
+		header={'Accept':'application/x-research-info-systems'}
+		r=requests.get("http://dx.doi.org/"+doi,headers=header,timeout=TIMEOUT_SETTING)
+		if (r.status_code is 200):
+			return r.text
+		print "Error doi (DOI.gettile)! "+doi 
+		return ""
+
+	def getbibliography(self,style="",locale="",doi=None):
+		'''Get the bibliography with given style'''
+		doi = self.unquote(doi) if doi else self
+		typestr="text/x-bibliography"
+		if (style):
+			typestr=typestr+"; style="+style
+		if locale:
+			typestr=typestr+"; locale="+locale
+		header={'Accept':typestr}
+		r=requests.get("http://dx.doi.org/"+doi,headers=header,timeout=TIMEOUT_SETTING)
+		if (r.status_code is 200):
+			return r.text
 		print "Error doi (DOI.gettile)! "+doi 
 		return ""
 
 	def freedownload(self,doi=None):
+		'''Is it open access or has free download url?'''
 		doi = self.unquote(doi) if doi else self
 		opprefix=['10.1371','10.3390',"10.3389","10.1186", "10.1093"]
 		if (self.prefix in opprefix):

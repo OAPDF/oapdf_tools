@@ -40,7 +40,7 @@ def getlargefontsize(s,cutoff=0.85):
 	setfs=set(results)
 	listints=[ fontsize2int(i) for i in setfs]
 	listints.sort()
-	print listints
+	#print listints
 	outdict={}
 
 	total=0
@@ -48,7 +48,7 @@ def getlargefontsize(s,cutoff=0.85):
 		ci=results.count(i)
 		total+=ci
 		outdict[fontsize2int(i)]=ci
-	print outdict
+	#print outdict
 
 	fless=0
 	limitsize=0
@@ -64,8 +64,8 @@ def fontsizestr(s,cutoff=0.85,fontsize=0):
 	if (fontsize>0):
 		limitsize=fontsize
 	else:
-		limitsize=getlargefontsize(cutoff)
-	bs=BeautifulSoup(s)
+		limitsize=getlargefontsize(s,cutoff)
+	bs=BeautifulSoup(s,'html.parser')
 	bss=bs.findChildren('span')
 	outstr=''
 	for i in bss:
@@ -81,7 +81,8 @@ def fontsizestr(s,cutoff=0.85,fontsize=0):
 
 class PDFdoiCheck(object):
 	'''DOI named PDF file processor object'''
-	pdoi=re.compile("(?:\:|\\b)(10[.][0-9]{4,}(?:[.][0-9]+)*/(?:(?![\|\"&\'<>])\\S)+)(?:\+?|\\b)")
+	#pdoi=re.compile("(?:\:|\\b)(10[.][0-9]{4,}(?:[.][0-9]+)*/(?:(?![\|\"&\'<>])\\S)+)(?:\+?|\\b)")
+	pdoi=DOI.pdoi
 	def __init__(self,fname=""):
 		self.handle=PDFHandler()
 		self.doi=set()
@@ -200,7 +201,7 @@ class PDFdoiCheck(object):
 	def pdfcontextpreprocess(self,text):
 		return removeunicode(text.lower().replace('doi:',' ').replace("\xe2\x80\x93",'-').replace("\xe5\x85\xbe","/"))
 
-	def findtext(self,text,page=1):
+	def findtext(self,text,similarity=0.95, page=1):
 		'''Just Find text in Page, Don't search doi and save it'''
 		if not self._fname: 
 			print "File Name Not Set!!!"
@@ -221,11 +222,11 @@ class PDFdoiCheck(object):
 			if (not self.normaltxt[page-1] ):
 				outstr=self.pdfcontextpreprocess(self.handle.GetSinglePage(self._fname,page))
 				self.normaltxt[page-1]=normalizeString(outstr).lower().strip().replace(' ','')
-			return self.hascontent(text,page=page)[0]
+			return self.hascontent(text, similarity=similarity, page=page)[0]
 		elif ( isinstance(page,list) or isinstance(page,tuple) or isinstance(page,set)):
 			outyn=False
 			for i in page:
-				outyn= self.findtext(text,i)
+				outyn= self.findtext(text,similarity=similarity,page=i)
 				if (outyn):
 					break
 			return outyn
@@ -302,6 +303,7 @@ class PDFdoiCheck(object):
 					perfect=text in ''.join(self.normaltxt)
 					return (perfect,float(perfect)/2)
 				if (similarity<1.0):
+					#print text,''.join(self.normaltxt)
 					sim=strsimilarity(''.join(self.normaltxt),text)
 					return (sim >= similarity,sim)
 				else:
@@ -312,6 +314,7 @@ class PDFdoiCheck(object):
 					perfect=text in self.normaltxt[page-1]
 					return (perfect,float(perfect)/2)
 				if (similarity<1.0):
+					#print text,self.normaltxt[page-1]
 					sim=strsimilarity(self.normaltxt[page-1],text)
 					return (sim >= similarity,sim)
 				else:
@@ -348,7 +351,8 @@ class PDFdoiCheck(object):
 			print "File Name Not Set!!!"
 			return ""
 		title=escaper.unescape(title)
-		title=re.sub(r"(?:<.?sup>|<.?i>|\$\$.*?{.*?}.*?\$\$)","",title)
+		#title=re.sub(r"(?:<.?sup>|<.?i>|\$\$.*?{.*?}.*?\$\$)","",title)
+		title=re.sub(r"(?:<.+?>|\$\$.*?{.*?}.*?\$\$)","",title)
 		return self.hascontent(title, similarity=similarity,page=page)
 
 	def checkcrossref(self,cr):
@@ -580,6 +584,10 @@ class PDFdoiCheck(object):
 					if (self.withSI or (self.findtext('Supporting Information', page=[totalpagenumber+1,totalpagenumber+2])
 						and self.findtext(cr.title, similarity=0.75, page=[totalpagenumber+1,totalpagenumber+2]))):
 						if not recursive : self.finddoi(totalpagenumber);
+						self.withSI=True
+						totalpagewrong=False
+					# For NIH Public Access
+					elif (self.hascontent("NIH Public Access")[0]):
 						totalpagewrong=False
 
 			# Recursive but total page wrong. Fast end recursivedoicheck
@@ -620,13 +628,14 @@ class PDFdoiCheck(object):
 
 			if (not totalpagewrong):
 				crscore=self.scorefitting(cr)
-				titlevalid=False
+				titleeval=self.checktitle(cr.title)
+				titlevalid=titleeval[0]
 				try:
 					# Too old maybe lost information
 					if (int(cr.year)>1990):
-						titlevalid=titleeval[0] or (titleeval[1]*wtitle+crscore['total'])>=cutoff
+						titlevalid=titlevalid or (titleeval[1]*wtitle+crscore['total'])>=cutoff
 					else:
-						titlevalid=titleeval[0] or (titleeval[1]*wtitle+crscore['total'])>=cutoff-0.1
+						titlevalid=titlevalid or (titleeval[1]*wtitle+crscore['total'])>=cutoff-0.1
 				#(self.checktitle(cr.title,similarity=0.85) and self.checkcrossref(cr))
 				except Exception as e:
 					print e
@@ -769,9 +778,71 @@ class PDFdoiCheck(object):
 				self.moveresult(6,"Error DOI fname(Fail):"+self._fname)
 			return 6
 
-	def removegarbage(self,fname,cutoff=0.85,fontsize=0):
+	def getbigtitle(self,fname=None,cutoff=0.85,fontsize=0,autotry=False):
+		'''Get the title or big font context'''
+		if not fname: fname=self._fname
+		if (not fname):
+			print "No file name is set!"
+			return ""
+		s=self.handle.GetPages(fname,pagenos=[1,2,3],html=True)
+		self.handle.reset(html=True)
+		result=""
+		if autotry:
+			for i in range(19):
+				cutoffnow=1.0-0.05*(i+1)
+				result=normalizeString(fontsizestr(s,cutoff=cutoffnow))
+				if (len(result)> 10):
+					break
+		else:
+			result=normalizeString(fontsizestr(s,cutoff=cutoff,fontsize=fontsize))
+		return result
+
+	def removegarbage(self,fname=None,cutoff=0.85,fontsize=0,autotry=False,notdelete=False):
 		'''Remove patents, supporting informations files'''
-		s=self.handle.GetPages(self._fname,pagenos=[1,2,3],html=True)
-		print fontsizestr(s,cutoff=cutoff,fontsize=fontsize)
+		if not fname: fname=self._fname
+		if (not fname):
+			print "No file name is set!"
+			return 0
+		outstr=self.getbigtitle(fname=fname,cutoff=cutoff,fontsize=fontsize,autotry=autotry).lower().strip().replace(' ','')
+
+		## Open Access
+		#oawords=['NIH Public Access']
+		#moveyn=False
+		#for word in oawords:
+		#	word=word.lower().strip().replace(" ",'')
+		#	sim=strsimilarity(outstr,word)
+		#	if (sim >= 0.95):
+		#		os.renames(fname,'OAPub/'+os.path.split(fname)[1])
+		#		self._fname='OAPub/'+os.path.split(fname)[1]
+		#		moveyn=True
+		#		return 1
+
+		# Patents, SI
+		gwords=['EUROPEAN PATENT APPLICATION', 'EUROPEAN PATENT SPECIFICATION',
+		'United States Patent', 'AUSTRALIAN PATENT']
+		for word in gwords:
+			word=word.lower().strip().replace(" ",'')
+			sim=strsimilarity(outstr,word)
+			if (sim >= 0.95):
+				if (not notdelete):
+					os.remove(fname)
+				else:
+					tmp=os.path.splitext(fname)
+					os.renames(fname,tmp[0]+'@.Patent'+tmp[1])
+					self._fname=tmp[0]+'@.Patent'+tmp[1]
+				return 2
+
+		gwords=['Supporting Information']
+		for word in gwords:
+			word=word.lower().strip().replace(" ",'')
+			sim=strsimilarity(outstr,word)
+			if (sim >= 0.95):
+				if (not notdelete):
+					os.remove(fname)
+				else:
+					tmp=os.path.splitext(fname)
+					os.renames(fname,tmp[0]+'@.SI'+tmp[1])
+					self._fname=tmp[0]+'@.SI'+tmp[1]
+				return 3
 
 
