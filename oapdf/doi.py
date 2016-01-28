@@ -208,8 +208,42 @@ class DOI(str):
 
 	def freedownload(self,doi=None):
 		'''Is it open access or has free download url?'''
-		doi = self.unquote(doi) if doi else self
+		doi = DOI(doi) if doi else self
 		opprefix=['10.1371','10.3390',"10.3389","10.1186", "10.1093"]
-		if (self.prefix in opprefix):
+		if (doi.prefix in opprefix):
 			return True
-		return self.is_oapdf() or self.valid_doaj()
+		return doi.is_oapdf() or doi.valid_doaj()
+
+	def publisherstyle(self,publisher,doi=None):
+		'''Parse doi style whether it's from given publisher
+		Support ACS, Wiley, AIP, Nature, Science, RSC, Springer, ScienceDirect'''
+		doi = DOI(doi) if doi else self
+
+		if (isinstance(publisher,str)):
+			if publisher: publisher=publisher.lower().strip()
+			if publisher == 'sciencedirect' or publisher=='elsevier':
+				publisher='sd'
+			
+			if (doi.prefix=='10.1021' and (publisher =='acs' or publisher=='all')):
+				return True
+			elif ((doi.prefix=='10.1002' or doi.prefix=='10.1011') and (publisher =='wiley' or publisher=='all')):
+				return True
+			elif (doi.prefix=='10.1016' and (publisher =='sd' or publisher=='all')):
+				return True
+			elif (doi.prefix=='10.1007' and (publisher =='springer' or publisher=='all')):
+				return True
+			elif (doi.prefix=='10.1039' and (publisher =='rsc' or publisher=='all')):
+				return True
+			elif (doi.prefix=='10.1038' and (publisher =='nature' or publisher=='all')):
+				return True	
+			elif (doi.prefix=='10.1126' and (publisher =='science' or publisher=='all')):
+				return True	
+			elif (doi.prefix=='10.1063' and (publisher =='aip' or publisher=='all')):
+				return True
+		elif (isinstance(publisher,list) or isinstance(publisher,set)):
+			for p in publisher:
+				result=self.publisherstyle(p)
+				if result:
+					return True
+		return False	
+

@@ -26,6 +26,13 @@ except (ImportError,ValueError) as e:
 timeout_setting=30
 timeout_setting_download=120
 
+def pdfexistpath(fname):
+	if (os.path.exists(fname) or os.path.exists('Done/'+fname)\
+		or os.path.exists('High/'+fname) or os.path.exists('Unsure/'+fname)\
+		or os.path.exists('Fail/'+fname) or os.path.exists('Untitle/'+fname) ):
+		return True
+	else:
+		return False
 
 ############################# Part5: Search Engine ##################################
 
@@ -105,8 +112,8 @@ class BaiduXueshu(object):
 
 	def getcite(self,num=0,citetype="txt"):
 		cite=self.items[num].findChild('a',attrs={'class':'sc_q c-icon-shape-hover'})
-		params={'t':citetype,'url':cite['data-link'],'sign':cite['data-sign']}
 		try:
+			params={'t':citetype,'url':cite['data-link'],'sign':cite['data-sign']}
 			r=requests.get(self.citeurl,params=params,timeout=timeout_setting)
 			if r.status_code is 200:
 				return r.text
@@ -115,22 +122,31 @@ class BaiduXueshu(object):
 		return ""
 
 	def getdoi(self,num=0):
+		'''Get DOI from Baidu Cite'''
 		soup=BeautifulSoup(self.getcite(num,citetype='txt'),"html.parser")
 		if (soup.doi): 
 			doi=soup.doi.text
-		else:
+		elif(soup.primarytitle):
 			cr=CRrecord()
 			cr.getfromtitle(soup.primarytitle.info.text,ignorecheminfo=True)
 			doi=cr.doi
+		else:
+			doi=DOI("")
 		return DOI(doi[doi.find('10.'):])
 
-	def getallpdf(self):
+	def getallpdf(self,doifilter=None):
+		'''Get All pdf from link
+		doifilter should be a function, return True when DOI ok'''
 		for i in range(len(self.items)):
 			try:
 				links=self.getpdflink(i)
 				if (links):
 					doi=DOI(self.getdoi(i))
-					if (not doi or doi.freedownload()):
+					if not doi:
+						continue
+					if (callable(doifilter) and not doifilter(doi)):
+						continue
+					if (doi.freedownload()):
 						continue
 					print "### Find for result with DOI: "+doi
 					doifname=doi.quote()+".pdf"
@@ -143,7 +159,7 @@ class BaiduXueshu(object):
 						print "!!!!!!! Get PDF file!: "+doifname
 						#time.sleep(random.randint(1,5))
 			except Exception as e:
-				print e, "Error when get pdf.."
+				print e, "##### Error when get pdf.."
 
 	def findwordPDF(self,keyword):
 			print "#########################################################################"
@@ -176,14 +192,14 @@ class BaiduXueshu(object):
 			if (os.path.exists(doi.quote()+".pdf")):
 				continue
 			self.findcrossreftitledoi(ldoi)
-			time.sleep(random.randint(1,10))
+			#time.sleep(random.randint(1,10))
 			countN+=1
 			if countN>=10:
 				gc.collect()
 				countN=0
 		fin.close()			
 
-	def findPDFbyISSN(self,issn,maxresult=None, step=100, offset=0, usedoi=True):
+	def findPDFbyISSN(self,issn,maxresult=None, step=100, offset=0, usedoi=True,doifilter=None):
 		'''Find PDF by ISSN based on search result from crossref'''
 		# may be improve to not only issn..
 		if (not issn):return
@@ -199,21 +215,25 @@ class BaiduXueshu(object):
 			params["offset"]=str(step*i+offset)
 			r=requests.get(needurl,params,timeout=timeout_setting_download)
 			if (r.status_code is 200):
-				for j in r.json()['message']['items']:
+				for j in r.json().get('message',{}).get('items',{}):
 					keyword=j.get('title',[''])
 					doi=DOI(j.get("DOI",""))
+					if not doi:
+						offsetcount+=1
+						continue
 					if (doi.freedownload()):
 						offsetcount+=1
 						continue
 					if (keyword): 
 						keyword=keyword[0]
 					else:
+						offsetcount+=1
 						continue
 					if usedoi:keyword+=" "+doi
 					print "#####################################",offsetcount,"####################################"
 					print "## Now finding for doi with title: "+ keyword.encode('utf-8')+"............"
 					sys.stdout.flush()
 					self.search(keyword.encode('utf-8'))
-					self.getallpdf()
+					self.getallpdf(doifilter)
 					offsetcount+=1
 			gc.collect()

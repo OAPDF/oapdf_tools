@@ -27,6 +27,22 @@ timeout_setting=30
 timeout_setting_download=120
 
 
+def acsstyledoi(doi):
+	doi=DOI(doi)
+	if (doi.prefix == '10.1021'):
+		return True
+	else:
+		return False
+
+class PublisherFilter(object):
+	def __init__(self,name):
+		'''name can be str/list/set'''
+		self.publisher=name
+	def filter(self,doi):
+		'''Use to filter the publisher'''
+		doi=DOI(doi)
+		return doi.publisherstyle(self.publisher)
+
 if __name__ == "__main__":
 	helpdes='''OAPDF tool for OADPF project'''
 
@@ -55,6 +71,21 @@ if __name__ == "__main__":
 	parser.add_option("--nodoi", action="store_false", 
 					dest="doi", default=True,
 					help="Turn off doi method")
+	parser.add_option("--onlyacs", action="store_true", 
+					dest="onlyacs", default=False,
+					help="Only get pdf with ACS doi style")
+	parser.add_option("--onlysd", action="store_true", 
+					dest="onlysd", default=False,
+					help="Only get pdf with Elesvier doi style")
+	parser.add_option("--onlywiley", action="store_true", 
+					dest="onlywiley", default=False,
+					help="Only get pdf with wiley doi style")
+	parser.add_option("--onlyrsc", action="store_true", 
+					dest="onlyrsc", default=False,
+					help="Only get pdf with RSC doi style")
+	parser.add_option("--onlyall", action="store_true", 
+					dest="onlyall", default=False,
+					help="Only get pdf with given all publisher doi style")
 	parser.add_option("-c", "--checkpdf", action="store_true", 
 					dest="checkpdf", default=False,
 					help="To check and rename pdf file in currenct directory")
@@ -105,6 +136,16 @@ if __name__ == "__main__":
 		sys.exit(exml.process(tmp[0]+'_new'+tmp[1], cleannote=options.cleannote,\
 		 prefix=options.prefix, issn=options.issn))
 
+	pfilter=None
+	publishers=[]
+	if options.onlyacs:
+		publishers.append('acs')
+	elif options.onlywiley:
+		publishers.append('wiley')
+	elif options.onlysd:
+		publishers.append('sd')
+	if publishers: pfilter=PublisherFilter(publishers).filter	
+
 	if (not options.baidu and options.bing):
 		try:
 			bingacad=BingAcademic()
@@ -130,7 +171,7 @@ if __name__ == "__main__":
 		if (options.input and options.doi):
 			bdxs.finddoiPDFfromFile(options.input)
 		if (options.issn):
-			bdxs.findPDFbyISSN(options.issn,maxresult=maxresult,offset=offset,usedoi=options.doi)
+			bdxs.findPDFbyISSN(options.issn,maxresult=maxresult,offset=offset,usedoi=options.doi,doifilter=pfilter)
 
 # rsc=292
 # acs=316
