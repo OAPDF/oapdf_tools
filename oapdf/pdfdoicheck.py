@@ -285,8 +285,9 @@ class PDFdoiCheck(object):
 			return 0
 
 	######### Start to judge ######################
-	def hascontent(self,text, similarity=0.95,page=None):
-		'''Normalize text and find it in normalized pdf content found before.'''
+	def hascontent(self,text, similarity=0.95,page=None,algorithm=2):
+		'''Normalize text and find it in normalized pdf content found before.
+		Normal use algorithm 2, for title use algorithm 3'''
 		if not self._fname: 
 			print "File Name Not Set!!!"
 			return (False,0.0)
@@ -298,13 +299,14 @@ class PDFdoiCheck(object):
 			return (False,0.0)
 
 		try:
+			#Check all parse before
 			if (not page or (isinstance(page,int) and (page>self.maxpage or page<=0))):
 				if (len(text)==3):
 					perfect=text in ''.join(self.normaltxt)
 					return (perfect,float(perfect)/2)
 				if (similarity<1.0):
 					#print text,''.join(self.normaltxt)
-					sim=strsimilarity(''.join(self.normaltxt),text)
+					sim=strsimilarity(''.join(self.normaltxt),text,algorithm=algorithm)
 					return (sim >= similarity,sim)
 				else:
 					perfect=text in ''.join(self.normaltxt)
@@ -315,7 +317,7 @@ class PDFdoiCheck(object):
 					return (perfect,float(perfect)/2)
 				if (similarity<1.0):
 					#print text,self.normaltxt[page-1]
-					sim=strsimilarity(self.normaltxt[page-1],text)
+					sim=strsimilarity(self.normaltxt[page-1],text,algorithm=algorithm)
 					return (sim >= similarity,sim)
 				else:
 					perfect=text in self.normaltxt[page-1]
@@ -346,14 +348,15 @@ class PDFdoiCheck(object):
 		return result	
 
 	def checktitle(self,title,similarity=0.95,page=None):
-		'''For check title. Some special case in title...'''
+		'''For check title. Some special case in title...
+		Use algorithm 3 for comparison.'''
 		if not self._fname: 
 			print "File Name Not Set!!!"
 			return ""
 		title=escaper.unescape(title)
 		#title=re.sub(r"(?:<.?sup>|<.?i>|\$\$.*?{.*?}.*?\$\$)","",title)
 		title=re.sub(r"(?:<.+?>|\$\$.*?{.*?}.*?\$\$)","",title)
-		return self.hascontent(title, similarity=similarity,page=page)
+		return self.hascontent(title, similarity=similarity,page=page,algorithm=3)
 
 	def checkcrossref(self,cr):
 		'''Check other info in crossref record...For some paper don't have doi.
@@ -629,7 +632,9 @@ class PDFdoiCheck(object):
 
 			if (not totalpagewrong):
 				crscore=self.scorefitting(cr)
-				titleeval=self.checktitle(cr.title)
+				if (self.maxpage <= totalpagenumber+2): 
+					# Maybe check when maxpage >total+2
+					titleeval=self.checktitle(cr.title)
 				titlevalid=titleeval[0]
 				try:
 					# Too old maybe lost information

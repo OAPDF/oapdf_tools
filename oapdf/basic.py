@@ -29,11 +29,22 @@ def strsimilarity(longstr,shortstr,maxdistance=20,algorithm=2):
 				lastposition=item[0]+item[2]	
 		return float(length)/len(shortstr)
 	else:
-		print longstr
-		print shortstr
+		#print longstr
+		#print shortstr
 		SM=difflib.SequenceMatcher(None,longstr,shortstr)
+		longest=SM.find_longest_match(0,len(longstr),0,len(shortstr))
+		mislength=len(shortstr)-longest[2]
+		if (mislength ==0):
+			return 1.0
+
+		longstart=longest[0]-mislength-maxdistance
+		if longstart<0: longstart=0
+		longend=longest[0]+len(shortstr)+maxdistance
+		if longend>len(longstr): longend=len(longstr)
+
+		SM=difflib.SequenceMatcher(None,longstr[longstart:longend],shortstr)
 		matching=SM.get_opcodes()
-		print matching
+		#print matching
 		length=0
 		lastposition=-1
 		deleseq=[]
@@ -42,16 +53,16 @@ def strsimilarity(longstr,shortstr,maxdistance=20,algorithm=2):
 				if (lastposition ==-1):
 					length+=item[4]-item[3]
 					lastposition=item[2]
-				elif (item[1]-lastposition <=len(shortstr)):
+				elif (item[1]-lastposition <=len(shortstr)+maxdistance):
 					length+=item[4]-item[3]
 					lastposition=item[2]
 				else:
 					break
 			elif(item[0] == 'replace'):
 				lastposition=item[2]
-			elif(item[0] == 'delete'):
+			elif(algorithm is 3 and item[0] == 'delete'):
 				deleseq.append([item[1],item[2]])
-			elif(item[0] == 'insert'):
+			elif(algorithm is 3 and item[0] == 'insert' ):
 				deld=None
 				for d in deleseq:
 					if (abs(d[1]-d[0]+item[3]-item[4])<=3):
@@ -60,8 +71,8 @@ def strsimilarity(longstr,shortstr,maxdistance=20,algorithm=2):
 						deld=d
 						break
 				if (deld): deleseq.remove(deld)
+		#print float(length)/len(shortstr)
 		return float(length)/len(shortstr)
-
 
 def removeunicode(s):
 	'''Remove non-ascii char'''
