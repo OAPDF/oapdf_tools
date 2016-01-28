@@ -29,8 +29,11 @@ def strsimilarity(longstr,shortstr,maxdistance=20,algorithm=2):
 				lastposition=item[0]+item[2]	
 		return float(length)/len(shortstr)
 	else:
+		print longstr
+		print shortstr
 		SM=difflib.SequenceMatcher(None,longstr,shortstr)
 		matching=SM.get_opcodes()
+		print matching
 		length=0
 		lastposition=-1
 		deleseq=[]
