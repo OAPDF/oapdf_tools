@@ -242,7 +242,7 @@ class DOI(str):
 		params={"ids":doi,"format":"json"}
 		r=requests.get("http://www.ncbi.nlm.nih.gov/pmc/utils/idconv/v1.0/", params=params,timeout=TIMEOUT_SETTING)
 		if (r.status_code is 200):
-			rj=r.json().get('records',{[]})
+			rj=r.json().get('records',[])
 			if (rj):
 				self._pmid=rj[0].get('pmid','')
 				self._pmcid=rj[0].get('pmcid','')
@@ -257,7 +257,7 @@ class DOI(str):
 		params={"ids":doi,"format":"json"}
 		r=requests.get("http://www.ncbi.nlm.nih.gov/pmc/utils/idconv/v1.0/", params=params,timeout=TIMEOUT_SETTING)		
 		if (r.status_code is 200):
-			rj=r.json().get('records',{[]})
+			rj=r.json().get('records',[])
 			if (rj):
 				self._pmid=rj[0].get('pmid','')
 				self._pmcid=rj[0].get('pmcid','')
@@ -270,7 +270,7 @@ class DOI(str):
 		params={"ids":pmid,"format":"json"}
 		r=requests.get("http://www.ncbi.nlm.nih.gov/pmc/utils/idconv/v1.0/", params=params,timeout=TIMEOUT_SETTING)		
 		if (r.status_code is 200):
-			rj=r.json().get('records',{[]})
+			rj=r.json().get('records',[])
 			if (rj):
 				doi=DOI(rj[0].get('doi',''))
 				if (doi):
