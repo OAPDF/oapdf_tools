@@ -43,6 +43,8 @@ class DOI(str):
 		#article object
 		self.crjson=None
 		self._url=""
+		self._pmid=""
+		self._pmcid=""
 
 	@property
 	def url(self):
@@ -50,6 +52,20 @@ class DOI(str):
 		if not self._url:
 			self._url=self.geturl()
 		return self._url
+
+	@property
+	def pmid(self):
+		'''Get PMID property'''
+		if not self._pmid:
+			self._pmid=self.getpmid()
+		return self._pmid
+
+	@property
+	def pmcid(self):
+		'''Get PMCID property'''
+		if not self._pmcid:
+			self._pmcid=self.getpmcid()
+		return self._pmcid
 
 	def quote(self,doi=None):
 		'''Quote it to file name format'''
@@ -118,11 +134,16 @@ class DOI(str):
 
 	def is_oapdf(self,doi=None):
 		'''Check the doi is in OAPDF library'''
+		doi = DOI(doi) if doi else self
 		if (not doi):
-			r=requests.get("http://oapdf.github.io/doilink/pages/"+self.decompose(url=True,outdir=False)+".html",timeout=TIMEOUT_SETTING)
-			return (r.status_code is 200)
-		else:
-			return DOI(doi).is_oapdf()
+			#r=requests.get('http://127.0.0.1/doilink/pages/'+self.decompose(url=True,outdir=False)+".html",timeout=0.3)
+			urldir=self.decompose(url=True,outdir=False)
+			try:
+				r=requests.get('http://35.8.151.207/doilink/pages/'+urldir+".html",timeout=0.3)
+				return (r.status_code is 200)
+			except:
+				r=requests.get("http://oapdf.github.io/doilink/pages/"+urldir+".html",timeout=TIMEOUT_SETTING)
+				return (r.status_code is 200)
 
 	def has_oapdf_pdf(self,doi=None):
 		'''Check whether the doi has in OAPDF library'''
@@ -167,7 +188,7 @@ class DOI(str):
 		if (r.status_code is 200):
 			self.crjson=r.json()
 			return self.crjson
-		print "Error doi (DOI.gettile)! "+doi
+		print "Error doi (DOI.getcrossref)! "+doi
 		self.crjson={} 
 		return self.crjson
 
@@ -178,7 +199,7 @@ class DOI(str):
 		r=requests.get("http://dx.doi.org/"+doi,headers=header,timeout=TIMEOUT_SETTING)
 		if (r.status_code is 200):
 			return r.text
-		print "Error doi (DOI.gettile)! "+doi 
+		print "Error doi (DOI.getbibtex)! "+doi 
 		return ""
 
 	def getendnote(self,doi=None):
@@ -188,7 +209,7 @@ class DOI(str):
 		r=requests.get("http://dx.doi.org/"+doi,headers=header,timeout=TIMEOUT_SETTING)
 		if (r.status_code is 200):
 			return r.text
-		print "Error doi (DOI.gettile)! "+doi 
+		print "Error doi (DOI.getendnote)! "+doi 
 		return ""
 
 	def getbibliography(self,style="",locale="",doi=None):
@@ -203,7 +224,7 @@ class DOI(str):
 		r=requests.get("http://dx.doi.org/"+doi,headers=header,timeout=TIMEOUT_SETTING)
 		if (r.status_code is 200):
 			return r.text
-		print "Error doi (DOI.gettile)! "+doi 
+		print "Error doi (DOI.getbibliography)! "+doi 
 		return ""
 
 	def freedownload(self,doi=None):
@@ -213,6 +234,55 @@ class DOI(str):
 		if (doi.prefix in opprefix):
 			return True
 		return doi.is_oapdf() or doi.valid_doaj()
+
+	def getpmid(self,doi=None):
+		'''Get PMID used in PubMed'''
+		doi = DOI(doi) if doi else self
+		if (self._pmid):return self._pmid
+		params={"ids":doi,"format":"json"}
+		r=requests.get("http://www.ncbi.nlm.nih.gov/pmc/utils/idconv/v1.0/", params=params,timeout=TIMEOUT_SETTING)
+		if (r.status_code is 200):
+			rj=r.json().get('records',{[]})
+			if (rj):
+				self._pmid=rj[0].get('pmid','')
+				self._pmcid=rj[0].get('pmcid','')
+			return self._pmid
+		print "No PMID or Error doi (DOI.getpmid)! "+doi 
+		return ""
+
+	def getpmcid(self,doi=None):
+		'''Get PMCID used in PubMed Central'''
+		doi = DOI(doi) if doi else self
+		if (self._pmcid):return self._pmcid
+		params={"ids":doi,"format":"json"}
+		r=requests.get("http://www.ncbi.nlm.nih.gov/pmc/utils/idconv/v1.0/", params=params,timeout=TIMEOUT_SETTING)		
+		if (r.status_code is 200):
+			rj=r.json().get('records',{[]})
+			if (rj):
+				self._pmid=rj[0].get('pmid','')
+				self._pmcid=rj[0].get('pmcid','')
+			return self._pmcid
+		print "No PMID or Error doi (DOI.getpcmid)! "+doi 
+		return ""
+
+	def getfrompmid(self,pmid):
+		'''Get DOI from PMID or PMCID'''
+		params={"ids":pmid,"format":"json"}
+		r=requests.get("http://www.ncbi.nlm.nih.gov/pmc/utils/idconv/v1.0/", params=params,timeout=TIMEOUT_SETTING)		
+		if (r.status_code is 200):
+			rj=r.json().get('records',{[]})
+			if (rj):
+				doi=DOI(rj[0].get('doi',''))
+				if (doi):
+					doi._pmid=rj[0].get('pmid','')
+					doi._pmcid=rj[0].get('pmcid','')
+					return doi
+		print "Error PMID/PMCID! "+pmid 
+		return ""
+
+	def getfrompmcid(self,pmcid):
+		'''Get DOI from PMID/PMCID'''
+		getfrompmcid=self.getfrompmid
 
 	def publisherstyle(self,publisher,doi=None):
 		'''Parse doi style whether it's from given publisher

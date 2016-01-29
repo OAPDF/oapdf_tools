@@ -107,7 +107,7 @@ class BaiduXueshu(object):
 	def getpdflink(self,num=0):
 		pdfs=[ i.text for i in self.items[num].findChildren('p',attrs={'class':"saveurl"})] \
 			+[ i['href'] for i in self.items[num].findChildren('a',attrs={'class':"sc_download c-icon-download-hover"})]
-		if (pdfs): print "Get",len(pdfs)," links for record ",num,":",str(pdfs)
+		if (pdfs): print "Get",len(pdfs)," links for record ",num,":"#,str(pdfs)
 		return [ self._parsepdflink(pdf) for pdf in pdfs ]
 
 	def getcite(self,num=0,citetype="txt"):
@@ -137,6 +137,7 @@ class BaiduXueshu(object):
 	def getallpdf(self,doifilter=None):
 		'''Get All pdf from link
 		doifilter should be a function, return True when DOI ok'''
+		usedoifilter=callable(doifilter)
 		for i in range(len(self.items)):
 			try:
 				links=self.getpdflink(i)
@@ -144,17 +145,21 @@ class BaiduXueshu(object):
 					doi=DOI(self.getdoi(i))
 					if not doi:
 						continue
-					if (callable(doifilter) and not doifilter(doi)):
+					if ( usedoifilter and not doifilter(doi)):
 						continue
 					if (doi.freedownload()):
 						continue
-					print "### Find for result with DOI: "+doi
 					doifname=doi.quote()+".pdf"
 					if (pdfexistpath(doifname)):
 						continue
+					print "### Find for result with DOI: "+doi
 					for link in links:
+						print 'Link:',str(link),
 						if (getwebpdf(adjustpdflink(link),fname=doifname,params=getwebpdfparams(link))):
+							print "Try Getting.."
 							break
+						else:
+							print "can't get at this link"
 					if (os.path.exists(doifname)):
 						print "!!!!!!! Get PDF file!: "+doifname
 						#time.sleep(random.randint(1,5))
@@ -162,11 +167,11 @@ class BaiduXueshu(object):
 				print e, "##### Error when get pdf.."
 
 	def findwordPDF(self,keyword):
-			print "#########################################################################"
-			print "## Now finding for: "+ keyword+"............"
-			sys.stdout.flush()
-			self.search(keyword=keyword)
-			self.getallpdf()		
+		print "#########################################################################"
+		print "## Now finding for: "+ keyword+"............"
+		sys.stdout.flush()
+		self.search(keyword=keyword)
+		self.getallpdf()		
 
 	def findcrossreftitledoi(self,doi,printyn=True):
 		'''Find doi by crossref first'''
@@ -237,3 +242,4 @@ class BaiduXueshu(object):
 					self.getallpdf(doifilter)
 					offsetcount+=1
 			gc.collect()
+		print "End of process for",issn

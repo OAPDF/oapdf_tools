@@ -14,9 +14,11 @@ from bs4 import BeautifulSoup
 
 try:
 	from .doi import DOI
+	from .crrecord import CRrecord
 	from .basic import normalizeString,strsimilarity,strdiff
 except (ImportError,ValueError) as e:
 	from doi import DOI
+	from crrecord import CRrecord
 	from basic import normalizeString,strsimilarity,strdiff
 
 
@@ -271,7 +273,7 @@ class EndnoteXML(object):
 		volume= self.getvolume(num)
 		year=self.getyear(num) 
 		pages=self.getpages(num)
-		self.cr=crrecord()
+		self.cr=CRrecord()
 		# The origin doi maybe true. Find in crossref
 		if ( doi and self.cr.getfromdoi(doi,fullparse=False) and self.cr.doi):
 			# Further check title
@@ -330,6 +332,13 @@ class EndnoteXML(object):
 				#	print "Doing:",i+1,
 				#else:
 				#	print i+1,
+
+				pdfs=self.getpdf(i)
+				# Fast consider as record process before
+				for pdf in pdfs:
+					if "internal-pdf://OAPDF/" in pdf:
+						continue
+
 				if (cleannote):
 					self.cleannote(i)
 				doi=DOI(self.finddoi(i,prefix=prefix,issn=issn))
@@ -339,7 +348,6 @@ class EndnoteXML(object):
 					if (doi.is_oapdf()):
 						oapdflink="http://oapdf.github.io/doilink/pages/"+doi.decompose(url=True, outdir=False)+".html"
 
-				pdfs=self.getpdf(i)
 				newpdfs=[]
 				for pdf in pdfs:
 					pdfpath=pdf.replace("internal-pdf://",epath+os.sep+"PDF"+os.sep)

@@ -9,15 +9,15 @@ requests.packages.urllib3.disable_warnings()
 from bs4 import BeautifulSoup
 
 
-timeout_setting=30
-timeout_setting_download=120
+TIMEOUT_SETTING=30
+TIMEOUT_SETTING_DOWNLOAD=120
 
 ################### Part4: PDF related library ########################
 
 def adjustpdflink(link):
 	'''Adjust some links to correct address'''
 	if ("europepmc.org/abstract/MED" in link):
-		r=requests.get(link,timeout=timeout_setting)
+		r=requests.get(link,timeout=TIMEOUT_SETTING)
 		if (r.status_code is 200):
 		 	soup=BeautifulSoup(r.text, "html.parser")
 			out=soup.findChild(attrs={"name":"citation_fulltext_html_url"})
@@ -64,8 +64,8 @@ def getwebpdf(link,fname,params=None, force=False):
 		return False
 	try:
 		if (params and isinstance(params,dict) ):
-			rpdf=requests.get(link,params=params,headers=browserhdr,timeout=timeout_setting)
-		else: rpdf=requests.get(link,headers=browserhdr,timeout=timeout_setting)
+			rpdf=requests.get(link,params=params,headers=browserhdr,timeout=TIMEOUT_SETTING)
+		else: rpdf=requests.get(link,headers=browserhdr,timeout=TIMEOUT_SETTING)
 		# check pdf type. sometimes not whole string, use "in"
 		if (rpdf.status_code is 200 and 'application/pdf' in rpdf.headers['Content-Type'].lower().strip()):
 			fpdf=open(fname,'wb')
