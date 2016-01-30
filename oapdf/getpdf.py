@@ -16,15 +16,17 @@ TIMEOUT_SETTING_DOWNLOAD=120
 
 def adjustpdflink(link):
 	'''Adjust some links to correct address'''
-	if ("europepmc.org/abstract/MED" in link):
-		r=requests.get(link,timeout=TIMEOUT_SETTING)
-		if (r.status_code is 200):
-		 	soup=BeautifulSoup(r.text, "html.parser")
-			out=soup.findChild(attrs={"name":"citation_fulltext_html_url"})
-			if (out): 
-				return out["content"]
+	if ("http://europepmc.org/" in link):
+		reresult=re.search(r'(?<=\/)PMC\d+?(?=\/)',link)
+		if (reresult):
+			pmcid=reresult.group()
+			link="http://europepmc.org/articles/"+pmcid+"?pdf=render"
 	#Avoid some website
-	elif ("onlinelibrary.wiley.com" in link or "pubs.acs.org" in link or "link.springer.com" in link or "http://www.sciencedirect.com/" in link):
+	elif ("onlinelibrary.wiley.com" in link \
+		or "//pubs.acs.org" in link \
+		or "//link.springer.com" in link \
+		or "//www.sciencedirect.com" in link \
+		or "//www.rsc.org" in link):
 		return ""
 	return link
 
@@ -64,14 +66,28 @@ def getwebpdf(link,fname,params=None, force=False):
 		return False
 	try:
 		if (params and isinstance(params,dict) ):
-			rpdf=requests.get(link,params=params,headers=browserhdr,timeout=TIMEOUT_SETTING)
-		else: rpdf=requests.get(link,headers=browserhdr,timeout=TIMEOUT_SETTING)
+			rpdf=requests.get(requests.utils.quote(link,'./:=?&-_'),params=params,headers=browserhdr,timeout=TIMEOUT_SETTING)
+		else: 
+			rpdf=requests.get(requests.utils.quote(link,'./:=?&-_'),headers=browserhdr,timeout=TIMEOUT_SETTING)
 		# check pdf type. sometimes not whole string, use "in"
-		if (rpdf.status_code is 200 and 'application/pdf' in rpdf.headers['Content-Type'].lower().strip()):
-			fpdf=open(fname,'wb')
-			fpdf.write(rpdf.content)
-			fpdf.close()
-			return True
+		if (rpdf.status_code is 200):
+			if 'application/pdf' in rpdf.headers['Content-Type'].lower().strip():
+				fpdf=open(fname,'wb')
+				fpdf.write(rpdf.content)
+				fpdf.close()
+				return True
+			#Parse get website..
+			elif ('.pdf' in rpdf.text):
+				renew=re.findall(r'(?<=href\=).*?\.pdf',rpdf.text)
+				if (renew and len(renew) is 1):				
+					newlink=renew[0].strip("'").strip('"')
+					if ("http://" not in newlink and newlink[0]=='/'):
+						tmp=requests.utils.urlparse(rpdf.url)
+						newlink=tmp[0]+"//"+tmp[1]+newlink
+					newresult=getwebpdf(newlink, fname=fname,params=params,force=force)
+					if newresult:
+						return True
+				return False
 	except requests.exceptions.ConnectionError:
 		print "Error to get pdf linK: "+link+" for file: "+fname
 	except requests.exceptions.TooManyRedirects:

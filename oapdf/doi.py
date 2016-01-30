@@ -136,14 +136,13 @@ class DOI(str):
 		'''Check the doi is in OAPDF library'''
 		doi = DOI(doi) if doi else self
 		if (not doi):
-			#r=requests.get('http://127.0.0.1/doilink/pages/'+self.decompose(url=True,outdir=False)+".html",timeout=0.3)
-			urldir=self.decompose(url=True,outdir=False)
-			try:
-				r=requests.get('http://35.8.151.207/doilink/pages/'+urldir+".html",timeout=0.3)
-				return (r.status_code is 200)
-			except:
-				r=requests.get("http://oapdf.github.io/doilink/pages/"+urldir+".html",timeout=TIMEOUT_SETTING)
-				return (r.status_code is 200)
+			#urldir=self.decompose(url=True,outdir=False)
+			#try:
+			#	r=requests.get('http://127.0.0.1/doilink/pages/'+self.decompose(url=True,outdir=False)+".html",timeout=0.3)
+			#	return (r.status_code is 200)
+			#except:
+			r=requests.get("http://oapdf.github.io/doilink/pages/"+self.decompose(url=True,outdir=False)+".html",timeout=TIMEOUT_SETTING)
+			return (r.status_code is 200)
 
 	def has_oapdf_pdf(self,doi=None):
 		'''Check whether the doi has in OAPDF library'''
@@ -247,7 +246,7 @@ class DOI(str):
 				self._pmid=rj[0].get('pmid','')
 				self._pmcid=rj[0].get('pmcid','')
 			return self._pmid
-		print "No PMID or Error doi (DOI.getpmid)! "+doi 
+		#print "No PMID or Error doi (DOI.getpmid)! "+doi 
 		return ""
 
 	def getpmcid(self,doi=None):
@@ -262,7 +261,7 @@ class DOI(str):
 				self._pmid=rj[0].get('pmid','')
 				self._pmcid=rj[0].get('pmcid','')
 			return self._pmcid
-		print "No PMID or Error doi (DOI.getpcmid)! "+doi 
+		#print "No PMID or Error doi (DOI.getpcmid)! "+doi 
 		return ""
 
 	def getfrompmid(self,pmid):
@@ -277,7 +276,7 @@ class DOI(str):
 					doi._pmid=rj[0].get('pmid','')
 					doi._pmcid=rj[0].get('pmcid','')
 					return doi
-		print "Error PMID/PMCID! "+pmid 
+		#print "Error PMID/PMCID! "+pmid 
 		return ""
 
 	def getfrompmcid(self,pmcid):
@@ -291,6 +290,11 @@ class DOI(str):
 
 		if (isinstance(publisher,str)):
 			if publisher: publisher=publisher.lower().strip()
+			# Use prefix to filter
+			if ('10.' in publisher):
+				return publisher in doi
+
+			# Use publisher name
 			if publisher == 'sciencedirect' or publisher=='elsevier':
 				publisher='sd'
 			

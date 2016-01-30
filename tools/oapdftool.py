@@ -106,7 +106,20 @@ if __name__ == "__main__":
 					help="Search by baidu. ")	
 	(options, args) = parser.parse_args()
 
-	if (options.checkpdf):
+	if (options.checkpdf and options.morecheck):
+		##### Check and remove garbish
+		dpf=PDFdoiCheck()
+		for f in glob.iglob("*.pdf"):
+			f=__doifilerename(f)
+			dpf.reset(f)
+			dpfresult=dpf.renamecheck(f)
+			if (dpfresult!=0): 
+				#Important to set fname to None
+				rmresult=dpf.removegarbage(fname=None)
+			sys.stdout.flush()
+		sys.exit(0)
+
+	elif (options.checkpdf and not options.morecheck):
 		##### Check and rename doi file
 		dpf=PDFdoiCheck()
 		for f in glob.iglob("*.pdf"):
@@ -115,8 +128,8 @@ if __name__ == "__main__":
 			sys.stdout.flush()
 		sys.exit(0)
 
-	if (options.morecheck):
-		##### Check and rename doi file
+	elif (options.morecheck):
+		##### Check and remove garbish file
 		dpf=PDFdoiCheck()
 		for f in glob.iglob("*.pdf"):
 			f=__doifilerename(f)

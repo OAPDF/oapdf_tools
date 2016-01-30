@@ -57,7 +57,7 @@ def getlargefontsize(s,cutoff=0.85):
 		if fless>total*cutoff:
 			limitsize=i+1
 			break
-	print "Limit Font size", limitsize
+	#print "Limit Font size", limitsize
 	return limitsize
 
 def fontsizestr(s,cutoff=0.85,fontsize=0):
@@ -73,7 +73,7 @@ def fontsizestr(s,cutoff=0.85,fontsize=0):
 			if (i.text):
 				outstr+=i.text+' '
 	#nstr= normalizeString(outstr)
-	print outstr
+	#print outstr
 	return outstr
 
 
@@ -185,7 +185,7 @@ class PDFdoiCheck(object):
 			os.renames(self._fname,newdir+os.sep+fbasic)
 			self._fname=newdir+os.sep+fbasic
 		except WindowsError as e:
-			print e
+			print e,'move fail? in pdfdoicheck.moveresult'
 			#os.system("mv '"+self._fname+"' '"+newdir+os.sep+fbasic+"'")
 
 	def doiresultprocess(self,dois):

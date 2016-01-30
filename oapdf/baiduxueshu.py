@@ -17,11 +17,13 @@ try:
 	from .crrecord import CRrecord
 	from .basic import *
 	from .getpdf import *
+	from .pdfdoicheck import PDFdoiCheck
 except (ImportError,ValueError) as e:
 	from doi import DOI
 	from crrecord import CRrecord
 	from basic import *
 	from getpdf import *
+	from pdfdoicheck import PDFdoiCheck
 
 timeout_setting=30
 timeout_setting_download=120
@@ -71,12 +73,14 @@ class BaiduXueshu(object):
 		self.request=None
 		self.soup=None
 		self.items=[]
-
+		#new add to check and remove not good result
+		self.pdfcheck=PDFdoiCheck()
 	def reset(self):
 		self.request=None
 		del self.items[:]
 		del self.soup; self.soup=None
 		del self.request; self.request=None
+		self.pdfcheck.reset('')
 		
 	def search(self,keyword,params={},headers={}):
 		self.reset()
@@ -98,7 +102,9 @@ class BaiduXueshu(object):
 		if (len(link)>4):
 			if link[:2]=="/s":
 				rer=re.search(r'(?<=url=)http.*?(?=\&ie;=utf-8)',link)
-				if rer:link=rer.group()
+				if rer:
+					link=rer.group()
+					return link
 			elif(link[:4] == 'http'):
 				return link
 			return ''
@@ -107,8 +113,10 @@ class BaiduXueshu(object):
 	def getpdflink(self,num=0):
 		pdfs=[ i.text for i in self.items[num].findChildren('p',attrs={'class':"saveurl"})] \
 			+[ i['href'] for i in self.items[num].findChildren('a',attrs={'class':"sc_download c-icon-download-hover"})]
-		if (pdfs): print "Get",len(pdfs)," links for record ",num,":"#,str(pdfs)
-		return [ self._parsepdflink(pdf) for pdf in pdfs ]
+		pdfs=list(set([ adjustpdflink(self._parsepdflink(pdf)) for pdf in pdfs]))
+		if '' in pdfs: pdfs.remove('')
+		if (pdfs): print "Get",len(pdfs)," links for record ",num,":",#,str(pdfs)
+		return pdfs
 
 	def getcite(self,num=0,citetype="txt"):
 		cite=self.items[num].findChild('a',attrs={'class':'sc_q c-icon-shape-hover'})
@@ -138,40 +146,79 @@ class BaiduXueshu(object):
 		'''Get All pdf from link
 		doifilter should be a function, return True when DOI ok'''
 		usedoifilter=callable(doifilter)
+		getfilelist=[]
 		for i in range(len(self.items)):
 			try:
 				links=self.getpdflink(i)
 				if (links):
 					doi=DOI(self.getdoi(i))
 					if not doi:
+						print "blank doi..",doi
 						continue
 					if ( usedoifilter and not doifilter(doi)):
+						print doi,'Not fit filter..'
 						continue
 					if (doi.freedownload()):
+						print doi,'exist in free library..'
 						continue
 					doifname=doi.quote()+".pdf"
 					if (pdfexistpath(doifname)):
+						print doi,'Files exist in current folder..'
 						continue
 					print "### Find for result with DOI: "+doi
 					for link in links:
 						print 'Link:',str(link),
-						if (getwebpdf(adjustpdflink(link),fname=doifname,params=getwebpdfparams(link))):
-							print "Try Getting.."
-							break
+						if (getwebpdf(link,fname=doifname,params=getwebpdfparams(link))):
+							print "Try Getting..",
+							try:
+								dpfresult=self.pdfcheck.renamecheck(doifname)
+								sys.stdout.flush()
+								if (dpfresult!=0): 
+									#Important to set fname to None		
+									rmresult=self.pdfcheck.removegarbage(fname=None)
+									if (rmresult <= 1):
+										if (os.path.exists(self.pdfcheck._fname)):
+											if dpfresult<4:
+												print "!!!!!!! Get PDF file to Not Done..: "+doifname
+												getfilelist.append(self.pdfcheck._fname)
+												#time.sleep(random.randint(1,5))								
+												break
+											else:
+												if (not os.path.exists('tmpfail/'+self.pdfcheck._fname)):
+													os.renames(self.pdfcheck._fname,'tmpfail/'+self.pdfcheck._fname)
+												else:
+													os.remove(self.pdfcheck._fname)
+										else:
+											print "What? should never happen for pdfdoicheck.moveresult Not Done.."
+									else:
+										print "Has been removed.."
+								else:
+									if (os.path.exists(self.pdfcheck._fname)):
+										print "!!!!!!! Get PDF file to Done!: "+doifname
+										getfilelist.append(self.pdfcheck._fname)
+										#time.sleep(random.randint(1,5))								
+										break
+									else:
+										print "What? should never happen for pdfdoicheck.moveresult Done.."
+							except Exception as e:
+								if os.path.exists(doifname):
+									if (not os.path.exists('tmpfail/'+doifname)):
+										os.renames(doifname,'tmpfail/'+doifname)
+									else:
+										os.remove(doifname)
+								print e,'Error at baidu getallpdf when doing pdfcheck'
 						else:
 							print "can't get at this link"
-					if (os.path.exists(doifname)):
-						print "!!!!!!! Get PDF file!: "+doifname
-						#time.sleep(random.randint(1,5))
 			except Exception as e:
 				print e, "##### Error when get pdf.."
+		return getfilelist
 
-	def findwordPDF(self,keyword):
+	def findwordPDF(self,keyword,doifilter=None):
 		print "#########################################################################"
 		print "## Now finding for: "+ keyword+"............"
 		sys.stdout.flush()
 		self.search(keyword=keyword)
-		self.getallpdf()		
+		self.getallpdf(doifilter)		
 
 	def findcrossreftitledoi(self,doi,printyn=True):
 		'''Find doi by crossref first'''
@@ -216,6 +263,7 @@ class BaiduXueshu(object):
 		params={"rows":str(step)}
 		maxround=(maxresult-offset)/step+1
 		offsetcount=offset
+
 		for i in range(maxround):
 			params["offset"]=str(step*i+offset)
 			r=requests.get(needurl,params,timeout=timeout_setting_download)
@@ -239,7 +287,14 @@ class BaiduXueshu(object):
 					print "## Now finding for doi with title: "+ keyword.encode('utf-8')+"............"
 					sys.stdout.flush()
 					self.search(keyword.encode('utf-8'))
-					self.getallpdf(doifilter)
+					bdresult=self.getallpdf(doifilter)
+					for fbd in bdresult:
+						self.pdfcheck.reset(fbd)
+						dpfresult=self.pdfcheck.renamecheck(fbd)
+						if (dpfresult!=0): 
+							#Important to set fname to None
+							rmresult=self.pdfcheck.removegarbage(fname=None)
+						sys.stdout.flush()
 					offsetcount+=1
 			gc.collect()
 		print "End of process for",issn
