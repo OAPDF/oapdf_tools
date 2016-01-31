@@ -615,7 +615,7 @@ class PDFdoiCheck(object):
 
 			if len(self.doi)>3:
 				# Too much doi may be some abstract
-				self.moveresult(2,printstr='Has more than 3 dois! (Unsure',self._fname)
+				self.moveresult(2,printstr='Has more than 3 dois! (Unsure):'+self._fname)
 				return 2
 
 			# Page wrong and try recursive use doi
