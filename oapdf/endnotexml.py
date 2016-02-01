@@ -346,7 +346,7 @@ class EndnoteXML(object):
 				if (doi):
 					self.setdoi(i,doi)
 					if (doi.is_oapdf()):
-						oapdflink="http://oapdf.github.io/doilink/pages/"+doi.decompose(url=True, outdir=False)+".html"
+						oapdflink="http://oapdf.sourceforge.net/cgi-bin/doipage.cgi?doi="+doi
 
 				newpdfs=[]
 				for pdf in pdfs:

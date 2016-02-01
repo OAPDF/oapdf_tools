@@ -33,7 +33,7 @@ def is_oapdf(doi,check=False):
 	if (check and "/" not in doi and "@" in doi):
 		doi=unquotefileDOI(doi)
 	try:#urllib maybe faster then requests
-		r=urllib2.urlopen("http://oapdf.github.io/doilink/pages/"+decomposeDOI(doi,url=True)+".html")
+		r=urllib2.urlopen("http://oapdf.sourceforge.net/oapdf/"+decomposeDOI(doi,url=True)+".html")
 		return (r.code is 200)
 	except:
 		return False

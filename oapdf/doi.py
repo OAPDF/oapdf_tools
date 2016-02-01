@@ -141,7 +141,7 @@ class DOI(str):
 			#	r=requests.get('http://127.0.0.1/doilink/pages/'+self.decompose(url=True,outdir=False)+".html",timeout=0.3)
 			#	return (r.status_code is 200)
 			#except:
-			r=requests.get("http://oapdf.github.io/doilink/pages/"+self.decompose(url=True,outdir=False)+".html",timeout=TIMEOUT_SETTING)
+			r=requests.get("http://oapdf.sourceforge.net/oapdf/"+self.decompose(url=True,outdir=False)+".html",timeout=TIMEOUT_SETTING)
 			return (r.status_code is 200)
 
 	def has_oapdf_pdf(self,doi=None):
