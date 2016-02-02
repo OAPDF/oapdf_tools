@@ -6,7 +6,7 @@
 '''Module for DOI and journal record operation
 Also include the journal pdf function'''
 
-import os,sys,re
+import os,sys,re,glob
 import time,random,gc
 import requests
 requests.packages.urllib3.disable_warnings()
@@ -379,12 +379,32 @@ class EndnoteXML(object):
 							except:
 								print "Can't rename:",pdf,'to',doi.quote()+".pdf"
 								newpdfs.append(pdf)
+								continue
 						else:
-							print "Maybe error for the record",doi,"with pdf path:",pdf
-							newpdfs.append(pdf)
+							print "Maybe error for the record",doi,"with pdf path:",pdf,'; Try finding..',
+							pdfdir=os.path.split(pdfpath)[0]
+							if (os.path.exists(pdfdir)):
+								fs=glob.glob(pdfdir+os.sep+'*.pdf')
+								if (len(fs)==1):
+									try:
+										os.renames(fs[0],epath+os.sep+"PDF"+os.sep+doi.quote()+".pdf")
+										newpdfs.append("internal-pdf://"+doi.quote()+".pdf")
+										print "Find",fs[0],'and rename!'
+									except:
+										print "Can't rename:",fs[0],'to',doi.quote()+".pdf"
+										newpdfs.append(pdf)
+										continue
+								else:
+									print "Can't find.."
+									newpdfs.append(pdf)
+									continue
+							else:
+								newpdfs.append(pdf)
+								continue
 					else:
 						print "Blank doi for file:",pdf
 						newpdfs.append(pdf)
+						continue
 				if (oapdflink):
 					newpdfs.append("internal-pdf://OAPDF/"+doi.quote()+".pdf")
 				self.setpdfs(i,newpdfs)
