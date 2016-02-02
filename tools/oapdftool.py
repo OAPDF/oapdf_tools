@@ -92,6 +92,9 @@ if __name__ == "__main__":
 	parser.add_option("--morecheck", action="store_true", 
 					dest="morecheck", default=False,
 					help="To more check and remove Patent/SI pdf file in currenct directory")
+	parser.add_option("--retaindone", action="store_true", 
+					dest="retaindone", default=False,
+					help="To Only retain pdf for Done")
 	parser.add_option("--endnote", action="store", 
 					dest="endnote", default="",
 					help="Process Endnote XML")
@@ -105,6 +108,9 @@ if __name__ == "__main__":
 					dest="baidu", default=False,
 					help="Search by baidu. ")	
 	(options, args) = parser.parse_args()
+
+	# Todo..
+	onlyretaindone=options.retaindone
 
 	if (options.checkpdf and options.morecheck):
 		##### Check and remove garbish
@@ -151,12 +157,16 @@ if __name__ == "__main__":
 
 	pfilter=None
 	publishers=[]
-	if options.onlyacs:
+
+	if options.onlyall:
+		publishers.append('all')
+	elif options.onlyacs:
 		publishers.append('acs')
 	elif options.onlywiley:
 		publishers.append('wiley')
 	elif options.onlysd:
 		publishers.append('sd')
+	
 	if publishers: pfilter=PublisherFilter(publishers).filter	
 
 	if (not options.baidu and options.bing):

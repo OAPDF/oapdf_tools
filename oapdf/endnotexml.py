@@ -21,7 +21,6 @@ except (ImportError,ValueError) as e:
 	from crrecord import CRrecord
 	from basic import normalizeString,strsimilarity,strdiff
 
-
 ############# Endnote relate libraray ##############
 
 class EndnoteXML(object):
@@ -166,6 +165,9 @@ class EndnoteXML(object):
 	def settitle(self,num,value):
 		self.settag(num,"title",value)
 
+	def getjournalfull(self,num):
+		return self.gettag(num,'secondary-title')
+
 	def getyear(self,num):
 		return self.gettag(num,'year','dates')
 
@@ -271,6 +273,7 @@ class EndnoteXML(object):
 		if (not prefix):
 			prefix = doi.split('/',1)[0] if doi else ""
 		volume= self.getvolume(num)
+		journal=self.getjournalfull(num)
 		year=self.getyear(num) 
 		pages=self.getpages(num)
 		self.cr=CRrecord()
@@ -292,7 +295,8 @@ class EndnoteXML(object):
 					return doi
 			print "Origin DOI:",doi,"may be true but record strange..Try title"
 
-		if (self.cr.getfromtitledoi(title,doi,year=year,limit=10,fullparse=False,prefix=prefix)):
+		keyword=title+" "+journal+" "+year+" "+pages+" "+volume
+		if (self.cr.getfromtitledoi(keyword,doi,year=year,limit=10,fullparse=False,prefix=prefix)):
 			if (doi):
 				if( prefix == self.cr.doi.split('/')[0] and strdiff(doi,self.cr.doi)>=0.85):
 					return self.cr.doi
@@ -318,9 +322,16 @@ class EndnoteXML(object):
 		if ("time" in notel):
 			self.setnotes(num,notel[notel.find('time'):])
 
-	def cleanallpdf(self):
+	def cleanallpdf(self,exceptOAPDF=True):
+		'''Clean PDF record or except OAPDF record'''
 		for i in range(self.length):
-			self.setpdf(i,'')
+			if (not exceptOAPDF):
+				self.setpdf(i,'')
+			else:
+				for pdf in self.getpdf(i):
+					if "internal-pdf://OAPDF/" in pdf:
+						self.setpdf(i,pdf)
+						break
 
 	def process(self,fname="",cleannote=False,prefix='',issn=''):
 		epath=self.getpath()
@@ -334,9 +345,13 @@ class EndnoteXML(object):
 				#	print i+1,
 
 				pdfs=self.getpdf(i)
+				urls=self.geturl(i)
 				# Fast consider as record process before
 				for pdf in pdfs:
 					if "internal-pdf://OAPDF/" in pdf:
+						continue
+				for url in urls:
+					if "http://oapdf.sourceforge.net/cgi-bin/" in url:
 						continue
 
 				if (cleannote):
@@ -352,24 +367,28 @@ class EndnoteXML(object):
 				for pdf in pdfs:
 					pdfpath=pdf.replace("internal-pdf://",epath+os.sep+"PDF"+os.sep)
 					relpath=pdf.replace("internal-pdf://","")
+					# should never happen
 					if (relpath == doi.quote()+".pdf"):
 						newpdfs.append(pdf)
 						continue
-					if (doi and os.path.exists(pdfpath)):
-						try:
-							os.renames(pdfpath,epath+os.sep+"PDF"+os.sep+doi.quote()+".pdf")
-							newpdfs.append("internal-pdf://"+doi.quote()+".pdf")
-						except:
-							print "Can't rename:",pdf,'to',doi.quote()+".pdf"
+					if (doi):
+						if (os.path.exists(pdfpath)):
+							try:
+								os.renames(pdfpath,epath+os.sep+"PDF"+os.sep+doi.quote()+".pdf")
+								newpdfs.append("internal-pdf://"+doi.quote()+".pdf")
+							except:
+								print "Can't rename:",pdf,'to',doi.quote()+".pdf"
+								newpdfs.append(pdf)
+						else:
+							print "Maybe error for the record",doi,"with pdf path:",pdf
 							newpdfs.append(pdf)
-					elif ("internal-pdf://OAPDF/" in pdf):
-						continue
 					else:
+						print "Blank doi for file:",pdf
 						newpdfs.append(pdf)
 				if (oapdflink):
 					newpdfs.append("internal-pdf://OAPDF/"+doi.quote()+".pdf")
 				self.setpdfs(i,newpdfs)
-				urls=self.geturl(i)
+				# Set the urls
 				if (oapdflink and oapdflink not in urls):
 					self.addurl(i,oapdflink,first=True)
 			#except:

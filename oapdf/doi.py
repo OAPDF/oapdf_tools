@@ -143,7 +143,10 @@ class DOI(str):
 			#except:
 			r=requests.get("http://oapdf.sourceforge.net/oapdf/"+self.decompose(url=True,outdir=False)+".html",timeout=TIMEOUT_SETTING)
 			return (r.status_code is 200)
-		
+		else:
+			print "Error doi to check by is_oapdf",doi
+			return False
+
 
 	def has_oapdf_pdf(self,doi=None):
 		'''Check whether the doi has in OAPDF library'''

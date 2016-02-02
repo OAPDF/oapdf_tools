@@ -273,13 +273,16 @@ class BaiduXueshu(object):
 					doi=DOI(j.get("DOI",""))
 					if not doi:
 						offsetcount+=1
+						time.sleep(2)
 						continue
 					if (doi.freedownload()):
 						offsetcount+=1
+						time.sleep(1)
 						continue
 					if (keyword): 
 						keyword=keyword[0]
 					else:
+						time.sleep(2)
 						offsetcount+=1
 						continue
 					if usedoi:keyword+=" "+doi
