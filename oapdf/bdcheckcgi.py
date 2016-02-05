@@ -111,7 +111,7 @@ class BDCheck(object):
 				outdois=set()
 				if (not crjson):
 					outdict = self.get(indois)
-					for k,v in outdict:
+					for k,v in outdict.items():
 						if oapdf>0:
 							if sum(v[:2]) >= 1:
 								outdois.add(k)
