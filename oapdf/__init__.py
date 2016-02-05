@@ -24,3 +24,4 @@ from .bingacademic import BingAcademic
 from crossrefapi import CrossRefAPI
 from .pdfdoicheck import PDFdoiCheck
 from .pdfhandler import PDFHandler
+from .bdcheckcgi import BDCheck

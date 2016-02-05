@@ -18,12 +18,14 @@ try:
 	from .basic import *
 	from .getpdf import *
 	from .pdfdoicheck import PDFdoiCheck
+	from .bdcheckcgi import BDCheck
 except (ImportError,ValueError) as e:
 	from doi import DOI
 	from crrecord import CRrecord
 	from basic import *
 	from getpdf import *
 	from pdfdoicheck import PDFdoiCheck
+	from bdcheckcgi import BDCheck
 
 timeout_setting=30
 timeout_setting_download=120
@@ -153,7 +155,7 @@ class BaiduXueshu(object):
 			savestate=set([savestate])
 		else:
 			savestate=set([0,1,2,3])
-
+		bdcheck=BDCheck()
 		for i in range(len(self.items)):
 			try:
 				getfilelist=[]
@@ -167,7 +169,19 @@ class BaiduXueshu(object):
 					if ( usedoifilter and not doifilter(doi)):
 						print doi,'Not fit filter..'
 						continue
-					if (doi.freedownload()):
+					# Check by bdcheck api
+					bdout=bdcheck.get(doi)
+					if sum(bdout)>0:
+						print doi, 'has search/oapdf/free',bdout
+						continue
+					oapdffree=bdcheck.setbycheck(doi)
+					if (oapdffree[0] and oapdffree[1]):
+						print doi,'exist in oapdf/free library..'
+						continue						
+					elif oapdffree[0]:
+						print doi,'exist in oapdf library..'
+						continue				
+					elif oapdffree[1]:
 						print doi,'exist in free library..'
 						continue
 					doifname=doi.quote()+".pdf"
@@ -250,6 +264,8 @@ class BaiduXueshu(object):
 								print e,'Error at baidu getallpdf when doing pdfcheck'
 						else:
 							print "can't get at this link"
+
+					bdcheck.set(doi)
 					# Online Check but not Done
 					if onlinecheck and not foundDonePDF and len(getfilelist)>0:
 						minnum=-1
@@ -317,6 +333,7 @@ class BaiduXueshu(object):
 		params={"rows":str(step)}
 		maxround=(maxresult-offset)/step+1
 		offsetcount=offset
+		bdcheck=BDCheck()
 
 		for i in range(maxround):
 			params["offset"]=str(step*i+offset)
@@ -329,10 +346,31 @@ class BaiduXueshu(object):
 						offsetcount+=1
 						time.sleep(2)
 						continue
-					if (doi.freedownload()):
+
+					# Check by bdcheck api
+					bdout=bdcheck.get(doi)
+					if sum(bdout)>0:
+						print doi, 'has search/oapdf/free',bdout
 						offsetcount+=1
 						time.sleep(1)
 						continue
+					oapdffree=bdcheck.setbycheck(doi)
+					if (oapdffree[0] and oapdffree[1]):
+						print doi,'exist in oapdf/free library..'
+						offsetcount+=1
+						time.sleep(1)
+						continue						
+					elif oapdffree[0]:
+						print doi,'exist in oapdf library..'
+						offsetcount+=1
+						time.sleep(1)
+						continue				
+					elif oapdffree[1]:
+						print doi,'exist in free library..'
+						offsetcount+=1
+						time.sleep(1)
+						continue
+
 					if (keyword): 
 						keyword=keyword[0]
 					else:
@@ -341,7 +379,7 @@ class BaiduXueshu(object):
 						continue
 					if usedoi:keyword+=" "+doi
 					print "#####################################",offsetcount,"####################################"
-					print "## Now finding for doi with title: "+ keyword.encode('utf-8')+"............"
+					print "## Now finding for doi with title:"+doi+" "+ keyword.encode('utf-8')+"............"
 					sys.stdout.flush()
 					self.search(keyword.encode('utf-8'))
 					bdresult=self.getallpdf(doifilter,onlinecheck=onlinecheck,savestate=savestate)

@@ -141,8 +141,11 @@ class DOI(str):
 			#	r=requests.get('http://127.0.0.1/doilink/pages/'+self.decompose(url=True,outdir=False)+".html",timeout=0.3)
 			#	return (r.status_code is 200)
 			#except:
-			r=requests.get("http://oapdf.sourceforge.net/oapdf/"+self.decompose(url=True,outdir=False)+".html",timeout=TIMEOUT_SETTING)
-			return (r.status_code is 200)
+			try:
+				r=requests.get("http://oapdf.sourceforge.net/oapdf/"+self.decompose(url=True,outdir=False)+".html",timeout=TIMEOUT_SETTING)
+				return (r.status_code is 200)
+			except Exception as e:
+				print e,'Error when valid is_oapdf..',doi
 		else:
 			print "Error doi to check by is_oapdf",doi
 			return False
@@ -230,13 +233,23 @@ class DOI(str):
 		print "Error doi (DOI.getbibliography)! "+doi 
 		return ""
 
-	def freedownload(self,doi=None):
-		'''Is it open access or has free download url?'''
+	def freedownload(self,doi=None,nooapdf=False,outtuple=False,pmc=False):
+		'''Is it open access or has free download url?
+		nooapdf: not to calculate oapdf
+		outtuple: return tuple(is_oapdf,freedownload)'''
 		doi = DOI(doi) if doi else self
-		opprefix=['10.1371','10.3390',"10.3389","10.1186", "10.1093"]
-		if (doi.prefix in opprefix):
-			return True
-		return doi.is_oapdf() or doi.valid_doaj()
+		
+		if (outtuple):
+			return (doi.is_oapdf(), self.freedownload(nooapdf=True,outtuple=False))
+
+		else:
+			opprefix=['10.1371','10.3390',"10.3389","10.1186", "10.1093"]
+			if (doi.prefix in opprefix):
+				return True
+			if (nooapdf):
+				return doi.valid_doaj() or (pmc and doi.pmcid)
+			else:
+				return doi.is_oapdf() or doi.valid_doaj() or (pmc and doi.pmcid)
 
 	def getpmid(self,doi=None):
 		'''Get PMID used in PubMed'''
