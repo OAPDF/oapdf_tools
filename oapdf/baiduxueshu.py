@@ -203,7 +203,8 @@ class BaiduXueshu(object):
 										print "!!!!!!! Get PDF file to Done!: "+self.pdfcheck.realdoi
 										del getfilelist[:]	
 										nowdoi=DOI(self.pdfcheck.realdoi)
-										getallfilelist.append('Done/'+nowdoi.quote()+'.pdf')						
+										getallfilelist.append('Done/'+nowdoi.quote()+'.pdf')
+
 										break
 									else:
 										print "What? should never happen for pdfdoicheck.savefobj2file Done.."
@@ -259,8 +260,8 @@ class BaiduXueshu(object):
 						nowdoi=DOI(getfilelist[minnum][1])
 						if (self.pdfcheck.savefobj2file(doi=nowdoi,state=getfilelist[minnum][2],fobj=getfilelist[minnum][0])):
 							print "!!!!!!! Get PDF file to: "+self.pdfcheck.judgedirs.get(getfilelist[minnum][2],'.'),self.pdfcheck.realdoi
-							del getfilelist[:]
 							getallfilelist.append(self.pdfcheck.judgedirs.get(getfilelist[minnum][2],'.')+os.sep+nowdoi.quote()+".pdf")
+							del getfilelist[:]
 			except Exception as e:
 				print e, "##### Error when get pdf.."
 		return getallfilelist
