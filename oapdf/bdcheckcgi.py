@@ -96,3 +96,38 @@ class BDCheck(object):
 		except Exception as e:
 			print e,"SF BDCheck SetByCheck Fail.."
 			return [False,False]
+
+	def filterdois(self,indois,oapdf=1,crjson=False):
+		'''Filter the input filter DOI, only do for Not Search Before
+		Can also filter dois in OAPDF:
+			oapdf>0: bdcheck or oapdf
+			oapdf=0: bdcheck 
+			oapdf<0: bdcheck and oapdf
+		Return a set (faster) '''
+		try:
+			if (isinstance(indois,(list,set,tuple))):
+				# dois in list/set/tuple 
+				# or items in crossref results
+				outdois=set()
+				if (not crjson):
+					outdict = self.get(indois)
+					for k,v in outdict:
+						if oapdf>0:
+							if sum(v[:2]) >= 1:
+								outdois.add(k)
+						elif oapdf<0:
+							if sum(v[:2]) is 2:
+								outdois.add(k)
+						else:
+							if v[0] is 1:
+								outdois.add(k)
+					return outdois
+				else:
+					indois=[ item.get("DOI","") for item in indois ]
+					return self.filterdois(indois,oapdf=oapdf,crjson=False)
+			elif (isinstance(indois,dict) and crjson):
+				indois=[ item.get("DOI","") for item in indois.get('message',{}).get('items',[]) ]
+				return self.filterdois(indois,oapdf=oapdf,crjson=False)
+		except Exception as e:
+			print e,"SF BDCheck filterdois Fail.."
+			return set()

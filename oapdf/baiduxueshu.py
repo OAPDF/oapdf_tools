@@ -169,6 +169,7 @@ class BaiduXueshu(object):
 					if ( usedoifilter and not doifilter(doi)):
 						print doi,'Not fit filter..'
 						continue
+						
 					# Check by bdcheck api
 					bdout=bdcheck.get(doi)
 					if sum(bdout)>0:
@@ -339,7 +340,9 @@ class BaiduXueshu(object):
 			params["offset"]=str(step*i+offset)
 			r=requests.get(needurl,params,timeout=timeout_setting_download)
 			if (r.status_code is 200):
-				for j in r.json().get('message',{}).get('items',{}):
+				# Get all check/in oapdf 
+				bdcheckall=bdcheck.filterdois(r.json(),oapdf=1,crjson=True)
+				for j in r.json().get('message',{}).get('items',[]):
 					keyword=j.get('title',[''])
 					doi=DOI(j.get("DOI",""))
 					if not doi:
@@ -347,29 +350,20 @@ class BaiduXueshu(object):
 						time.sleep(2)
 						continue
 
-					# Check by bdcheck api
-					bdout=bdcheck.get(doi)
-					if sum(bdout)>0:
-						print doi, 'has search/oapdf/free',bdout
+					# Check whether in bdcheck
+					if (doi in bdcheckall):
+						print doi, 'has search/oapdf/free by bdcheck'
 						offsetcount+=1
 						time.sleep(1)
 						continue
+					# If not in bdcheck, check oapdf/free and set it
+					# TODO: remove it after combine oapdf information to library
 					oapdffree=bdcheck.setbycheck(doi)
-					if (oapdffree[0] and oapdffree[1]):
+					if (oapdffree[0] or oapdffree[1]):
 						print doi,'exist in oapdf/free library..'
 						offsetcount+=1
 						time.sleep(1)
 						continue						
-					elif oapdffree[0]:
-						print doi,'exist in oapdf library..'
-						offsetcount+=1
-						time.sleep(1)
-						continue				
-					elif oapdffree[1]:
-						print doi,'exist in free library..'
-						offsetcount+=1
-						time.sleep(1)
-						continue
 
 					if (keyword): 
 						keyword=keyword[0]
