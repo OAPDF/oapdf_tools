@@ -8,6 +8,7 @@ import requests
 requests.packages.urllib3.disable_warnings()
 from bs4 import BeautifulSoup
 from HTMLParser import HTMLParser
+from StringIO import StringIO
 
 try:
 	from .doi import DOI
@@ -21,6 +22,9 @@ except (ImportError,ValueError) as e:
 	from crrecord import CRrecord
 
 escaper=HTMLParser()
+
+TIMEOUT_SETTING=30
+TIMEOUT_SETTING_DOWNLOAD=120
 
 ###### Function
 
@@ -90,12 +94,15 @@ class PDFdoiCheck(object):
 		self.normaltxt=[]
 		self.reset(fname)
 		self.withSI=False
+		self.fobj=None
+		# Save real doi, esepecially when wrong doi
+		self.realdoi=""
 		
 	@property
 	def fname(self):
 	    return self._fname
 	
-	def reset(self,fname):
+	def reset(self,fname,fobj=None):
 		'''Reset the saved information and Set the fname 
 		!!Important: You should set the fname when you deal with another file!!!'''
 		self.handle.reset()
@@ -109,6 +116,14 @@ class PDFdoiCheck(object):
 		self.maxpage=0
 		self._fname=""
 		self.withSI=False
+		self.realdoi=""
+		self.fobj=None
+		if (fobj and isinstance(fobj,(file,StringIO))):
+			self._fname= "None" #tmp file name for ignore check
+			self.fobj=fobj
+			self.maxpage=self.handle.GetPageNumber("",fobj=fobj)
+			self.normaltxt=['' for i in range(self.maxpage)]
+			return			
 		if (not fname):
 			return
 		if (os.path.exists(fname) and os.path.splitext(fname)[1].lower()==".pdf"):
@@ -119,12 +134,50 @@ class PDFdoiCheck(object):
 			print "Error file exist or pdf type. Check it"
 
 	def setfile(self,fname):
+		'''Seldomly use'''
 		self.reset(fname)
+
+	def setfname4fobj(self,fname):
+		'''Just set fname for file obj'''
+		if (fobj):
+			self._fname=fname
+		else:
+			print "File object not exists!"
+
+	def savefobj2file(self,fname="",doi="",state=None,fobj=None):
+		'''Save the current file obj(file/StringIO) to a file
+		And also set the self.fname'''
+		if (not fname and not doi):
+			print "File name or doi is not given!"
+			return
+		if (doi and not fname):
+			doi=DOI(doi)
+			fname=doi.quote()+'.pdf'
+			
+		if (state is not None):
+			outdir=self.judgedirs.get(state,'.')
+			if not os.path.exists(outdir):os.makedirs(outdir)
+			fname=outdir+os.sep+fname	
+
+		if not fobj: fobj=self.fobj		
+
+		if (fname and fobj and not fobj.closed):
+			fobj.seek(0)
+			if (not os.path.exists(fname)):				
+				f=open(fname,'wb')
+				f.write(fobj.read())
+				f.close()
+				fobj.seek(0)
+				self._fname=fname
+				return True
+			else:
+				print "File has exist...."
+				return False
 
 	def renamefile(self,newname):
 		'''Rename a file'''
 		try:
-			if not self._fname: 
+			if not self._fname or self._fname is "None": 
 				print "File Name Not Set!!!"
 				return
 			if(os.path.exists(newname)):
@@ -137,7 +190,7 @@ class PDFdoiCheck(object):
 
 	def movetodir(self,newdir):
 		'''move to new dir'''
-		if not self._fname: 
+		if not self._fname or self._fname is "None": 
 			print "File Name Not Set!!!"
 			return
 		fbasic=os.path.split(self._fname)[1]
@@ -163,7 +216,7 @@ class PDFdoiCheck(object):
 		fname=self._fname
 		if (newfname):
 			fname=newfname
-		if not self._fname: 
+		if not self._fname or self._fname is "None": 
 			print "File Name Not Set!!!"
 			return
 		fbasic=os.path.split(fname)[1]
@@ -209,7 +262,7 @@ class PDFdoiCheck(object):
 		if (self.maxpage is 0):
 			print 'Error max page 0 for '+self._fname
 			return ""
-		if (isinstance(page,str) or isinstance(page,float) ):
+		if (isinstance(page,(str,float)) ):
 			page=int(page)
 		normaltxt=""
 		if (isinstance(page,int)):
@@ -220,10 +273,10 @@ class PDFdoiCheck(object):
 				page=self.maxpage
 			# Only page not process before
 			if (not self.normaltxt[page-1] ):
-				outstr=self.pdfcontextpreprocess(self.handle.GetSinglePage(self._fname,page))
+				outstr=self.pdfcontextpreprocess(self.handle.GetSinglePage(self._fname,page,fobj=self.fobj))
 				self.normaltxt[page-1]=normalizeString(outstr).lower().strip().replace(' ','')
 			return self.hascontent(text, similarity=similarity, page=page)[0]
-		elif ( isinstance(page,list) or isinstance(page,tuple) or isinstance(page,set)):
+		elif ( isinstance(page,(list,tuple,set))):
 			outyn=False
 			for i in page:
 				outyn= self.findtext(text,similarity=similarity,page=i)
@@ -241,11 +294,11 @@ class PDFdoiCheck(object):
 		if (self.maxpage is 0):
 			print 'Error max page 0 for '+self._fname
 			return ""
-		if (isinstance(page,str) or isinstance(page,float) ):
+		if (isinstance(page,(str,float)) ):
 			page=int(page)
 		if (isinstance(page,int)):
 			if (page <= 0 ):
-				outstr=self.pdfcontextpreprocess(self.handle.GetAllPages(self._fname))
+				outstr=self.pdfcontextpreprocess(self.handle.GetAllPages(self._fname,fobj=self.fobj))
 				self.doi.update(self.doiresultprocess(self.pdoi.findall(outstr)))
 				self.normaltxt=normalizeString(outstr).lower().strip().replace(' ','')
 				self.didpage.update(range(1,self.maxpage+1))
@@ -254,11 +307,11 @@ class PDFdoiCheck(object):
 				page=self.maxpage
 			# Only page not process before
 			if (page not in self.didpage):
-				outstr=self.pdfcontextpreprocess(self.handle.GetSinglePage(self._fname,page))
+				outstr=self.pdfcontextpreprocess(self.handle.GetSinglePage(self._fname,page,fobj=self.fobj))
 				self.doi.update(self.doiresultprocess(self.pdoi.findall(outstr)))
 				self.normaltxt[page-1]=normalizeString(outstr).lower().strip().replace(' ','')
 				self.didpage.add(page)
-		elif ( isinstance(page,list) or isinstance(page,tuple) or isinstance(page,set)):
+		elif ( isinstance(page,(list,tuple,set))):
 			for i in page:
 				self.finddoi(i)
 
@@ -402,7 +455,7 @@ class PDFdoiCheck(object):
 	def checkdoifurther(self,doi):
 		'''Special cases..It will re-read pdf and do more process. 
 		So it need to run checkdoinormaltxt first to make sure doi in context'''
-		outstr=self.handle.GetPages(self._fname,self.didpage).lower()
+		outstr=self.handle.GetPages(self._fname,self.didpage,fobj=self.fobj).lower()
 		outstr=outstr.replace("\xe2\x80\x93",'-').replace("\xe5\x85\xbe","/")
 		#dois=set(self.doiresultprocess(self.pdoi.findall(re.sub(r"\n(?=[^\n])",'',re.sub(r'doi.(?=10.)',' ',outstr)))))
 		out2=re.sub(r"\n(?=[^\n])",'',outstr)
@@ -476,6 +529,7 @@ class PDFdoiCheck(object):
 			# else, retain 4 and blank doi
 		if (len(rightdoi) is 1):
 			doi=DOI(rightdoi[0])
+			self.realdoi=doi
 			if not justcheck:
 				self.moveresult(0,printstr=None,newfname=doi.quote()+".pdf")
 			return 0
@@ -489,7 +543,7 @@ class PDFdoiCheck(object):
 				self.moveresult(tryjudge,printstr=None)
 			return tryjudge
 
-	def renamecheck(self,fname,wtitle=0.65,cutoff=0.85,justcheck=False,resetfile=True,fdoi=None,excludedoi=None):
+	def renamecheck(self,fname,wtitle=0.65,cutoff=0.85,justcheck=False,resetfile=True,fdoi=None,excludedoi=None, fobj=None):
 		'''A complex function to get doi from file name, 
 		check in crossref, check in pdf file, rename it!
 		just check can cancel move file'''
@@ -503,6 +557,11 @@ class PDFdoiCheck(object):
 		# 6: ErrorDOI
 		# 10: Unknow
 
+
+		if (resetfile and isinstance(fobj,(file,StringIO))):
+			self.reset(fname="",fobj=fobj)
+			fname="None"
+
 		# len(self.doi) is 1 and len(self.doi - excludedoi) is 1 : 
 		# :: First Run and perform check
 		# len(self.doi) is 1 or len(self.doi - excludedoi) is 1 :
@@ -514,8 +573,12 @@ class PDFdoiCheck(object):
 			print "What do you want?! No excludedoi set by user! (Return 9)"
 			return 9
 
-		if (resetfile): 
+		
+		if (resetfile and fname !="None"): 
 			self.reset(fname)
+		elif(resetfile and not isinstance(fobj,(file,StringIO))):
+			print "Use reset file but no file name/object is given!"
+			return 9
 
 		if (self.maxpage == 0):
 			if not justcheck: 
@@ -526,6 +589,7 @@ class PDFdoiCheck(object):
 			excludedoi=set()
 
 		if (not fdoi):
+			#File obj is ""
 			fdoi=DOI(os.path.splitext(os.path.basename(self._fname))[0])
 		else:
 			fdoi=DOI(fdoi)
@@ -533,6 +597,9 @@ class PDFdoiCheck(object):
 		recursive= (len(excludedoi) > 0)
 		# If in recursive, don't move file!
 		if recursive: justcheck=True
+
+		if resetfile and not recursive:
+			self.realdoi=fdoi
 
 		# Only find DOI in first time!
 		if (not recursive and fdoi): 
@@ -543,7 +610,7 @@ class PDFdoiCheck(object):
 		# file doi is shit..Recursively use doi in file or fail
 		if (not fdoi and not recursive):
 			if (len(self.doi) is 1 or len(self.doi) is 2):
-				print "Origin fdoi wrong but has 1/2 doi in file:",self._fname,
+				print "Origin fdoi wrong but has 1~2 dois in file:",self._fname,
 				return self.recursivedoicheck(excludedoi,olddoi=fdoi,wtitle=wtitle,cutoff=wtitle,justcheck=justcheck)
 			# No doi or >2 dois in file
 			else:
@@ -604,6 +671,7 @@ class PDFdoiCheck(object):
 			if (totalpagenumber > 0 and not totalpagewrong):
 				if (doivalid and titleeval[0] and len(self.doi) is 1):
 					# Yes! Very Good PDF!
+					self.realdoi=fdoi
 					if not justcheck: self.moveresult(0)
 					return 0
 
@@ -654,6 +722,7 @@ class PDFdoiCheck(object):
 				if (doivalid):
 					if (titlevalid):					
 						# Yes! Good PDF!
+						self.realdoi=fdoi
 						if not justcheck: self.moveresult(0)
 						return 0
 
@@ -664,6 +733,7 @@ class PDFdoiCheck(object):
 						newresult = self.recursivedoicheck(excludedoi,olddoi=fdoi,wtitle=wtitle,cutoff=wtitle,justcheck=True)
 						if (newresult is 0):
 							newdoi=DOI(list(self.doi - set([fdoi]))[0])
+							self.realdoi=newdoi
 							print 
 							if not justcheck: self.moveresult(0, 
 								printstr="(Rename)fdoi ok, but not title. In file doi "+newdoi+" is better for "+self._fname,
@@ -789,13 +859,37 @@ class PDFdoiCheck(object):
 				self.moveresult(6,"Error DOI fname(Fail):"+self._fname)
 			return 6
 
+	def checkonlinepdf(self,url=None,fobj=None,doi="",wtitle=0.65,cutoff=0.85,params=None):
+		'''Check the online PDF'''
+		if not url and not fobj:
+			print "No url or fobj is set!"
+			return 9
+		if url:
+			if not params:params={}
+			if not header:headers={}
+			r=requests.get(url,timeout=TIMEOUT_SETTING_DOWNLOAD)
+			if (r.status_code == 200):
+				if 'application/pdf' in r.headers['Content-Type'].lower().strip():
+					fobj=StringIO(r.content)
+				else:
+					print "No a pdf file for ",url
+					return 9
+			else:
+				print "Error connection to the online pdf file",url,'state:',r.status_code
+				return 9
+		if not fobj:
+			print "Can't get the file object!"
+			return 9
+		return self.renamecheck(fname="", fobj=fobj ,wtitle=wtitle,cutoff=cutoff,
+			justcheck=True,fdoi=doi,resetfile=True,excludedoi=None)
+
 	def getbigtitle(self,fname=None,cutoff=0.85,fontsize=0,autotry=False):
 		'''Get the title or big font context'''
 		if not fname: fname=self._fname
 		if (not fname):
 			print "No file name is set!"
 			return ""
-		s=self.handle.GetPages(fname,pagenos=[1,2,3],html=True)
+		s=self.handle.GetPages(fname,pagenos=[1,2,3],html=True,fobj=self.fobj)
 		self.handle.reset(html=True)
 		result=""
 		if autotry:
@@ -811,7 +905,7 @@ class PDFdoiCheck(object):
 	def removegarbage(self,fname=None,cutoff=0.85,fontsize=0,autotry=False,notdelete=False):
 		'''Remove patents, supporting informations files'''
 		if not fname: fname=self._fname
-		if (not fname):
+		if (not fname or (fname == "None" and not notdelete)):
 			print "No file name is set!"
 			return 0
 		outstr=self.getbigtitle(fname=fname,cutoff=cutoff,fontsize=fontsize,autotry=autotry).lower().strip().replace(' ','')
@@ -822,7 +916,7 @@ class PDFdoiCheck(object):
 		#for word in oawords:
 		#	word=word.lower().strip().replace(" ",'')
 		#	sim=strsimilarity(outstr,word)
-		#	if (sim >= 0.95):
+		#	if (sim >= 0.95 and fname != "None"):
 		#		os.renames(fname,'OAPub/'+os.path.split(fname)[1])
 		#		self._fname='OAPub/'+os.path.split(fname)[1]
 		#		moveyn=True
@@ -837,7 +931,7 @@ class PDFdoiCheck(object):
 			if (sim >= 0.95):
 				if (not notdelete):
 					os.remove(fname)
-				else:
+				elif ( fname != "None" ):
 					tmp=os.path.splitext(fname)
 					os.renames(fname,tmp[0]+'@.Patent'+tmp[1])
 					self._fname=tmp[0]+'@.Patent'+tmp[1]
@@ -850,7 +944,7 @@ class PDFdoiCheck(object):
 			if (sim >= 0.95):
 				if (not notdelete):
 					os.remove(fname)
-				else:
+				elif ( fname != "None" ):
 					tmp=os.path.splitext(fname)
 					os.renames(fname,tmp[0]+'@.SI'+tmp[1])
 					self._fname=tmp[0]+'@.SI'+tmp[1]

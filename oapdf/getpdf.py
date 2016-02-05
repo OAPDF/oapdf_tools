@@ -7,7 +7,7 @@ import os,re
 import requests,urlparse
 requests.packages.urllib3.disable_warnings()
 from bs4 import BeautifulSoup
-
+from StringIO import StringIO
 
 TIMEOUT_SETTING=30
 TIMEOUT_SETTING_DOWNLOAD=120
@@ -57,10 +57,10 @@ def getwebpdfparams(link):
 	return None
 
 browserhdr={'user-agent': 'Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/47.0.2526.106 Safari/537.36'}
-def getwebpdf(link,fname,params=None, force=False):
+def getwebpdf(link,fname,params=None, force=False,stringio=False):
 	'''Get a PDF from a link. if fail, return False'''
 	#Have been downloaded...
-	if (not force and os.path.exists(fname)):
+	if (not stringio and not force and os.path.exists(fname)):
 		return True
 	if (not link):
 		return False
@@ -72,10 +72,13 @@ def getwebpdf(link,fname,params=None, force=False):
 		# check pdf type. sometimes not whole string, use "in"
 		if (rpdf.status_code is 200):
 			if 'application/pdf' in rpdf.headers['Content-Type'].lower().strip():
-				fpdf=open(fname,'wb')
-				fpdf.write(rpdf.content)
-				fpdf.close()
-				return True
+				if (stringio):
+					return StringIO(rpdf.content)
+				else:
+					fpdf=open(fname,'wb')
+					fpdf.write(rpdf.content)
+					fpdf.close()
+					return True
 			#Parse get website..
 			elif ('.pdf' in rpdf.text):
 				renew=re.findall(r'(?<=href\=).*?\.pdf',rpdf.text)
@@ -84,10 +87,9 @@ def getwebpdf(link,fname,params=None, force=False):
 					if ("http://" not in newlink and newlink[0]=='/'):
 						tmp=requests.utils.urlparse(rpdf.url)
 						newlink=tmp[0]+"//"+tmp[1]+newlink
-					newresult=getwebpdf(newlink, fname=fname,params=params,force=force)
+					newresult= getwebpdf(newlink, fname=fname,params=params,force=force,stringio=stringio)
 					if newresult:
-						return True
-				return False
+						return newresult
 	except requests.exceptions.ConnectionError:
 		print "Error to get pdf linK: "+link+" for file: "+fname
 	except requests.exceptions.TooManyRedirects:

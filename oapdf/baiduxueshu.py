@@ -142,13 +142,22 @@ class BaiduXueshu(object):
 			doi=DOI("")
 		return DOI(doi[doi.find('10.'):])
 
-	def getallpdf(self,doifilter=None):
+	def getallpdf(self,doifilter=None,onlinecheck=True,savestate=None):
 		'''Get All pdf from link
 		doifilter should be a function, return True when DOI ok'''
 		usedoifilter=callable(doifilter)
-		getfilelist=[]
+		getallfilelist=[]
+		if isinstance(savestate,(list,tuple,set)):
+			savestate=set(savestate)
+		elif (isinstance(savestate,int)):
+			savestate=set([savestate])
+		else:
+			savestate=set([0,1,2,3])
+
 		for i in range(len(self.items)):
 			try:
+				getfilelist=[]
+				# Get PDF links
 				links=self.getpdflink(i)
 				if (links):
 					doi=DOI(self.getdoi(i))
@@ -165,34 +174,65 @@ class BaiduXueshu(object):
 					if (pdfexistpath(doifname)):
 						print doi,'Files exist in current folder..'
 						continue
+
+					# Start to find pdf at each link
 					print "### Find for result with DOI: "+doi
+					foundDonePDF=False
 					for link in links:
 						print 'Link:',str(link),
-						if (getwebpdf(link,fname=doifname,params=getwebpdfparams(link))):
+						if (onlinecheck):
+							print "Try Getting..",
+							# Get a StringIO obj
+							getpdfobj=getwebpdf(link,fname=doifname,params=getwebpdfparams(link),stringio=True)
+							if (not getpdfobj):
+								continue
+							try:
+								dpfresult=self.pdfcheck.checkonlinepdf(fobj=getpdfobj,doi=doi)
+								sys.stdout.flush()
+								if (dpfresult!=0):
+									if ( savestate and (dpfresult in savestate)):
+										#Important to set fname to None
+										rmresult=self.pdfcheck.removegarbage(fname=None,notdelete=True)
+										if (rmresult <= 1):
+											getfilelist.append( (getpdfobj,self.pdfcheck.realdoi,dpfresult))
+									else:
+										print "Not OK PDF for doi",doi												
+								else:
+									foundDonePDF=True
+									if (self.pdfcheck.savefobj2file(doi=self.pdfcheck.realdoi,state=0,fobj=getpdfobj)):
+										print "!!!!!!! Get PDF file to Done!: "+self.pdfcheck.realdoi
+										del getfilelist[:]	
+										nowdoi=DOI(self.pdfcheck.realdoi)
+										getallfilelist.append('Done/'+nowdoi.quote()+'.pdf')						
+										break
+									else:
+										print "What? should never happen for pdfdoicheck.savefobj2file Done.."
+							except Exception as e:
+								print e,'Error at baidu getallpdf(web) when doing pdfcheck',doi,link
+
+						# Now should not use this method
+						elif (getwebpdf(link,fname=doifname,params=getwebpdfparams(link))):
+							print "Please don't use download pdf to disk, use check online!"
 							print "Try Getting..",
 							try:
 								dpfresult=self.pdfcheck.renamecheck(doifname)
 								sys.stdout.flush()
 								if (dpfresult!=0): 
-									#Important to set fname to None		
-									rmresult=self.pdfcheck.removegarbage(fname=None)
-									if (rmresult <= 1):
-										if (os.path.exists(self.pdfcheck._fname)):
-											if dpfresult<4:
-												print "!!!!!!! Get PDF file to Not Done..: "+doifname
-												getfilelist.append(self.pdfcheck._fname)
-												#time.sleep(random.randint(1,5))								
-												break
+									if ( savestate and (dpfresult in savestate)):
+										#Important to set fname to None		
+										rmresult=self.pdfcheck.removegarbage(fname=None)
+										if (rmresult <= 1):
+											if (os.path.exists(self.pdfcheck._fname)):
+												getfilelist.append((self.pdfcheck._fname, dpfresult))
 											else:
-												if (not os.path.exists('tmpfail/'+self.pdfcheck._fname)):
-													os.renames(self.pdfcheck._fname,'tmpfail/'+self.pdfcheck._fname)
-												else:
-													os.remove(self.pdfcheck._fname)
+												print "What? should never happen for pdfdoicheck.moveresult Not Done.."
 										else:
-											print "What? should never happen for pdfdoicheck.moveresult Not Done.."
+											print "Has been removed.."
 									else:
-										print "Has been removed.."
+										if (os.path.exists(self.pdfcheck._fname)) : 
+											os.remove(self.pdfcheck._fname)
 								else:
+									foundDonePDF=True
 									if (os.path.exists(self.pdfcheck._fname)):
 										print "!!!!!!! Get PDF file to Done!: "+doifname
 										getfilelist.append(self.pdfcheck._fname)
@@ -209,9 +249,21 @@ class BaiduXueshu(object):
 								print e,'Error at baidu getallpdf when doing pdfcheck'
 						else:
 							print "can't get at this link"
+					# Online Check but not Done
+					if onlinecheck and not foundDonePDF and len(getfilelist)>0:
+						minnum=-1
+						minresult=999999
+						for i in range(len(getfilelist)):
+							if getfilelist[i][2]<minresult:
+								minnum=i
+						nowdoi=DOI(getfilelist[minnum][1])
+						if (self.pdfcheck.savefobj2file(doi=nowdoi,state=getfilelist[minnum][2],fobj=getfilelist[minnum][0])):
+							print "!!!!!!! Get PDF file to: "+self.pdfcheck.judgedirs.get(getfilelist[minnum][2],'.'),self.pdfcheck.realdoi
+							del getfilelist[:]
+							getallfilelist.append(self.pdfcheck.judgedirs.get(getfilelist[minnum][2],'.')+os.sep+nowdoi.quote()+".pdf")
 			except Exception as e:
 				print e, "##### Error when get pdf.."
-		return getfilelist
+		return getallfilelist
 
 	def findwordPDF(self,keyword,doifilter=None):
 		print "#########################################################################"
@@ -251,7 +303,8 @@ class BaiduXueshu(object):
 				countN=0
 		fin.close()			
 
-	def findPDFbyISSN(self,issn,maxresult=None, step=100, offset=0, usedoi=True,doifilter=None):
+	def findPDFbyISSN(self,issn,maxresult=None, step=100, offset=0, 
+		usedoi=True,doifilter=None,onlinecheck=True,savestate=None):
 		'''Find PDF by ISSN based on search result from crossref'''
 		# may be improve to not only issn..
 		if (not issn):return
@@ -290,14 +343,7 @@ class BaiduXueshu(object):
 					print "## Now finding for doi with title: "+ keyword.encode('utf-8')+"............"
 					sys.stdout.flush()
 					self.search(keyword.encode('utf-8'))
-					bdresult=self.getallpdf(doifilter)
-					for fbd in bdresult:
-						self.pdfcheck.reset(fbd)
-						dpfresult=self.pdfcheck.renamecheck(fbd)
-						if (dpfresult!=0): 
-							#Important to set fname to None
-							rmresult=self.pdfcheck.removegarbage(fname=None)
-						sys.stdout.flush()
+					bdresult=self.getallpdf(doifilter,onlinecheck=onlinecheck,savestate=savestate)
 					offsetcount+=1
 			gc.collect()
 		print "End of process for",issn

@@ -3,6 +3,8 @@
 
 '''PDF handler to parse PDF file'''
 
+from StringIO import StringIO
+
 ######## PDFHandler class
 # maybe use cStringIO.StringIO instead
 class stdmodel(object):
@@ -51,7 +53,8 @@ from pdfminer.converter import TextConverter,HTMLConverter
 #from pdfminer.image import ImageWriter
 
 class PDFHandler(object):
-	'''A PDF Handle class to read contains'''
+	'''A PDF Handle class to read contains
+	Now also support file object/StringIO object(won't close after process)'''
 	def __init__(self):
 		# debug option
 		self.setdebug(0)
@@ -109,40 +112,63 @@ class PDFHandler(object):
 		#CMapDB.debug = self.debug
 		#PDFDevice.debug = self.debug	
 
-	def GetPageNumber(self,fname):
-		'''Get total page number of PDF'''	
-		fp = file(fname, 'rb')
+	def GetPageNumber(self,fname,fobj=None):
+		'''Get total page number of PDF'''
+		if (fobj):
+			#fp=StringIO(fobj.read())
+			#fobj.seek(0)
+			fp=fobj
+		else:
+			fp = file(fname, 'rb')
 		try:
 			pageno=0
 			for page in PDFPage.get_pages(fp, set(), maxpages=0, 
 				password=self.password, caching=self.caching, check_extractable=False):
 				pageno+=1
-			fp.close()
+			if fobj:
+				fp.seek(0)
+			else:
+				fp.close()
 			return pageno
 		except Exception as e:
 			print e
-			fp.close()
+			if fobj:
+				fp.seek(0)
+			else:
+				fp.close()
 			print "Error Reading PDF page number.."
 			return 0
 
-	def FastCheck(self,fname):
+	def FastCheck(self,fname,fobj=None):
 		'''Fast check whether has page one'''
-		fp = file(fname, 'rb')
+		if (fobj):
+			fp=fobj
+		else:
+			fp = file(fname, 'rb')
 		try:
 			for page in PDFPage.get_pages(fp, set([0]), maxpages=1, 
 				password=self.password, caching=self.caching, check_extractable=False):
 				break
-			fp.close()
+			if fobj:
+				fp.seek(0)
+			else:
+				fp.close()
 			return True
 		except Exception as e:
-			fp.close()
+			if fobj:
+				fp.seek(0)
+			else:
+				fp.close()
 			print "Error Reading PDF page number..",fname
 			return False
 
-	def GetSinglePage(self,fname,pageno=1,html=False):
+	def GetSinglePage(self,fname,pageno=1,html=False,fobj=None):
 		'''Get Single Page contents of PDF, return string
 		Default first page'''	
-		fp = file(fname, 'rb')
+		if (fobj):
+			fp=fobj
+		else:
+			fp = file(fname, 'rb')
 		try:
 			if (html):
 				interpreter = PDFPageInterpreter(self.rsrcmgr, self.htmldevice)
@@ -154,19 +180,28 @@ class PDFHandler(object):
 
 				page.rotate = (page.rotate+self.rotation) % 360
 				interpreter.process_page(page)
-			fp.close()
+			if fobj:
+				fp.seek(0)
+			else:
+				fp.close()
 			outstr=self.outfp.get()
 			self.outfp.reset()
 			return outstr 
 		except Exception as e:
 			self.outfp.reset()
-			fp.close()
+			if fobj:
+				fp.seek(0)
+			else:
+				fp.close()
 			return ""
 
-	def GetPages(self,fname,pagenos=[1],html=False):
+	def GetPages(self,fname,pagenos=[1],html=False,fobj=None):
 		'''Get Several Page contents of PDF, return string
 		Default first page'''	
-		fp = file(fname, 'rb')
+		if (fobj):
+			fp=fobj
+		else:
+			fp = file(fname, 'rb')
 		try:
 			if (html):
 				interpreter = PDFPageInterpreter(self.rsrcmgr, self.htmldevice)
@@ -178,18 +213,27 @@ class PDFHandler(object):
 
 				page.rotate = (page.rotate+self.rotation) % 360
 				interpreter.process_page(page)
-			fp.close()
+			if fobj:
+				fp.seek(0)
+			else:
+				fp.close()
 			outstr=self.outfp.get()
 			self.outfp.reset()
 			return outstr 
 		except Exception as e:
 			self.outfp.reset()
-			fp.close()
+			if fobj:
+				fp.seek(0)
+			else:
+				fp.close()
 			return ""
 
-	def GetAllPages(self,fname,html=False):
+	def GetAllPages(self,fname,html=False,fobj=None):
 		'''Get All Page contents of PDF, return string'''	
-		fp = file(fname, 'rb')
+		if (fobj):
+			fp=fobj
+		else:
+			fp = file(fname, 'rb')
 		try:
 			if (html):
 				interpreter = PDFPageInterpreter(self.rsrcmgr, self.htmldevice)
@@ -201,11 +245,17 @@ class PDFHandler(object):
 
 				page.rotate = (page.rotate+self.rotation) % 360
 				interpreter.process_page(page)
-			fp.close()
+			if fobj:
+				fp.seek(0)
+			else:
+				fp.close()
 			outstr=self.outfp.get()
 			self.outfp.reset()
 			return outstr 
 		except Exception as e:
 			self.outfp.reset()
-			fp.close()
+			if fobj:
+				fp.seek(0)
+			else:
+				fp.close()
 			return ""
