@@ -79,6 +79,7 @@ class BDCheck(object):
 
 	def setbycheck(self,doi):
 		'''Update the bdcheck/oapdf/free in library based on check oapdf/free
+		Can't set the record to "bdcheck" state
 		return the [oapdf,free]'''
 		try:
 			if (isinstance(doi,str)):

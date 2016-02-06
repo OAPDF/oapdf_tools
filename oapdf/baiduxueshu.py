@@ -92,6 +92,9 @@ class BaiduXueshu(object):
 		params['sc_hit']='1'#for find all, not exactly
 		r=requests.get(self.url,params=params,headers=headers,timeout=timeout_setting)
 		if r.status_code is 200:
+			if ('<img src="http://verify.baidu.com/cgi-bin/genimg' in r.text):
+				time.sleep(600)
+				self.search(keyword,params=params,headers=headers)
 			self.soup=BeautifulSoup(r.text, "html.parser")
 			self.items=self.soup.findChildren('div',attrs={'class':'result sc_default_result xpath-log'})
 			#print "Find",len(self.items)," Results."
@@ -377,6 +380,7 @@ class BaiduXueshu(object):
 					sys.stdout.flush()
 					self.search(keyword.encode('utf-8'))
 					bdresult=self.getallpdf(doifilter,onlinecheck=onlinecheck,savestate=savestate)
+					bdcheck.set(doi)
 					offsetcount+=1
 			gc.collect()
 		print "End of process for",issn
