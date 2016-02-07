@@ -414,7 +414,7 @@ if __name__ == '__main__':
 		
 		if not options.doilink: options.doilink='../doilink'
 		print "Start touching..."
-		touchpage(origin=options.touch, doilink=options.doilink,pdf=True,force=False)
+		touchpage(origin=options.all, doilink=options.doilink,pdf=True,force=False)
 
 		if (not targetdir):targetdir='.'
 		if not options.user: options.user='360'
