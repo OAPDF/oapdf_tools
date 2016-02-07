@@ -122,7 +122,7 @@ def touchpage(origin='.', doilink='../doilink',pdf=True,force=False):
 	doilink=doilink.rstrip('/').rstrip('\\')
 	sfurl="http://oapdf.sourceforge.net/cgi-bin/touchdoi.cgi?owner=oapdf"
 
-	workingdir=os.path.abspath(origin).rstrip('\\').rstrip('/')
+	workdir=os.path.abspath(origin).rstrip('\\').rstrip('/')
 	count=0
 	touchcount=1 # avoid submit when start
 	forcesf=force # force to overwrite the exist doilink page
