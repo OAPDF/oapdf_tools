@@ -5,7 +5,7 @@
 
 '''Module for bdcheck.cgi'''
 
-import requests,json
+import requests,json,time
 try:
 	from .doi import DOI
 except (ImportError,ValueError) as e:
@@ -31,12 +31,20 @@ class BDCheck(object):
 			# if dois in list/tuple/set
 			elif(isinstance(doi,(list,tuple,set))):
 				dois=list(doi)
-				doisjs=json.dumps(dois)
-				param={'dois':doisjs}
-				r=requests.post(self.url+"&select=True",params=param,timeout=TIMEOUT_SETTING)
-				if r.status_code == 200:
-					return r.json()
-				return {}
+				result={}
+				length=len(dois)
+				maxround= length/100+1 if length%100 != 0 else length/100
+				for i in range(0,maxround):
+					if ((i+1)*100>=len(dois)):
+						doisjs=json.dumps(dois[i*100:])
+					else:
+						doisjs=json.dumps(dois[i*100:(i+1)*100])
+					param={'dois':doisjs}
+					r=requests.post(self.url+"&select=True",params=param,timeout=TIMEOUT_SETTING)
+					if r.status_code == 200:
+						result.update(r.json())
+					time.sleep(1)
+				return result
 			return [0,0,0]
 		except Exception as e:
 			print e,"SF BDCheck Get Fail.."
@@ -63,16 +71,25 @@ class BDCheck(object):
 
 			elif(isinstance(doi,(list,tuple,set))):
 				dois=list(doi)
-				doisjs=json.dumps(dois)
-				param={'dois':doisjs}
-				if (oapdf and free):
-					r=requests.post(self.url+"&update=True&oapdf=True&free=True",params=param,timeout=TIMEOUT_SETTING)
-				elif oapdf:
-					r=requests.post(self.url+"&update=True&oapdf=True",params=param, timeout=TIMEOUT_SETTING)				
-				elif free:
-					r=requests.post(self.url+"&update=True&free=True",params=param, timeout=TIMEOUT_SETTING)
-				else:
-					r=requests.post(self.url+"&update=True",params=param, timeout=TIMEOUT_SETTING)
+				result={}
+				length=len(dois)
+				maxround= length/100+1 if length%100 != 0 else length/100
+				for i in range(0,maxround):
+					if ((i+1)*100>=len(dois)):
+						doisjs=json.dumps(dois[i*100:])
+					else:
+						doisjs=json.dumps(dois[i*100:(i+1)*100])
+					param={'dois':doisjs}
+					if (oapdf and free):
+						r=requests.post(self.url+"&update=True&oapdf=True&free=True",params=param,timeout=TIMEOUT_SETTING)
+					elif oapdf:
+						r=requests.post(self.url+"&update=True&oapdf=True",params=param, timeout=TIMEOUT_SETTING)				
+					elif free:
+						r=requests.post(self.url+"&update=True&free=True",params=param, timeout=TIMEOUT_SETTING)
+					else:
+						r=requests.post(self.url+"&update=True",params=param, timeout=TIMEOUT_SETTING)
+					time.sleep(1)
+
 
 		except Exception as e:
 			print e,"SF BDCheck Set Fail.."
