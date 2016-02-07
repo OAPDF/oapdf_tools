@@ -20,7 +20,7 @@ setup(
   url              = 'https://github.com/OAPDF/oapdftools',
   license          = 'MIT',
   packages         = find_packages(exclude=['test-*']),
-  scripts		   = ['tools/oapdftool.py'],
+  scripts		   = ['tools/oapdftool.py','tools/postpdfs.py'],
   install_requires = ['requests>=2.7.0', 'pdfminer'],
   classifiers      = (
     'Development Status :: 3 - Alpha',
