@@ -15,7 +15,7 @@ class GatherProxy(object):
 	pre1=re.compile(r'<tr.*?>(?:.|\n)*?</tr>')
 	pre2=re.compile(r"(?<=\(\').+?(?=\'\))")
 
-	def getelite(self,pages=1,uptime=70,fast=True):
+	def getelite(self,pages=1,uptime=95,fast=True):
 		'''Get Elite Anomy proxy
 		Pages define how many pages to get
 		Uptime define the uptime(L/D)
@@ -39,6 +39,32 @@ class GatherProxy(object):
 				print e,' when get elite proxy from gatherproxy..'
 		return proxies
 
+	def getports(self,pages=1,uptime=95,fast=True,port=""):
+		'''Get Elite Anomy proxy
+		Pages define how many pages to get
+		Uptime define the uptime(L/D)
+		fast define only use fast proxy with short reponse time'''
+		if not port:
+			ports=['80','8080','3128']
+			port=random.sample(ports,1)[0]
+		proxies=set()
+		for i in range(1,pages+1):
+			params={"Port":port,"PageIdx":str(i),"Uptime":str(uptime)}
+			try:
+				r=requests.post(self.url+"/port/"+port,params=params,headers=header,timeout=TIMEOUT_SETTING)
+				for td in self.pre1.findall(r.text):
+					if fast and 'center fast' not in td:
+						continue 
+					try:
+						tmp= self.pre2.findall(str(td))
+						if(len(tmp)==2):
+							proxies.add(tmp[0]+":"+str(int('0x'+tmp[1],16)))
+					except:
+						pass
+			except Exception as e:
+				print e,' when get port',port,'proxy from gatherproxy..'
+		return proxies
+
 class ProxyPool(object):
 	'''A proxypool class to obtain proxy'''
 
@@ -52,12 +78,13 @@ class ProxyPool(object):
 		self.pool.clear()
 		self.dead.clear()
 
-	def updateGatherProxy(self,pages=1,uptime=70,fast=True):
+	def updateGatherProxy(self,pages=1,uptime=95,fast=True,port=None):
 		'''Use GatherProxy to update proxy pool'''
-		self.pool.update(self.gatherproxy.getelite(pages=pages,uptime=uptime,fast=fast))
+		#getelite -> getports
+		self.pool.update(self.gatherproxy.getports(pages=pages,uptime=uptime,fast=fast,port=port))
 		self.pool=self.pool-self.dead
 		if (not self.pool):
-			self.updateGatherProxy(self,pages=pages+1,uptime=uptime-10,fast=fast)
+			self.updateGatherProxy(self,pages=pages+1,uptime=uptime-10,fast=fast,port=port)
 
 	def removeproxy(self,proxy):
 		'''Remove a proxy from pool'''

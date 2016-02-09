@@ -71,7 +71,6 @@ class BDCheck(object):
 
 			elif(isinstance(doi,(list,tuple,set))):
 				dois=list(doi)
-				result={}
 				length=len(dois)
 				maxround= length/100+1 if length%100 != 0 else length/100
 				for i in range(0,maxround):
@@ -146,6 +145,30 @@ class BDCheck(object):
 			elif (isinstance(indois,dict) and crjson):
 				indois=[ item.get("DOI","") for item in indois.get('message',{}).get('items',[]) ]
 				return self.filterdois(indois,oapdf=oapdf,crjson=False)
+		except Exception as e:
+			print e,"SF BDCheck filterdois Fail.."
+			return set()
+
+	def tododois(self,indois,crjson=False):
+		'''Filter the input DOI, only do for Search Before but not get
+		Return a set (faster) '''
+		try:
+			if (isinstance(indois,(list,set,tuple))):
+				# dois in list/set/tuple 
+				# or items in crossref results
+				outdois=set()
+				if (not crjson):
+					outdict = self.get(indois)
+					for k,v in outdict.items():
+						if v[1] == 0 and v[0]==1:
+							outdois.add(k)
+					return outdois
+				else:
+					indois=[ item.get("DOI","") for item in indois ]
+					return self.tododois(indois,crjson=False)
+			elif (isinstance(indois,dict) and crjson):
+				indois=[ item.get("DOI","") for item in indois.get('message',{}).get('items',[]) ]
+				return self.tododois(indois,crjson=False)
 		except Exception as e:
 			print e,"SF BDCheck filterdois Fail.."
 			return set()

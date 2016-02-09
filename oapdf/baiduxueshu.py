@@ -84,13 +84,20 @@ class BaiduXueshu(object):
 		del self.request; self.request=None
 		self.pdfcheck.reset('')
 		
-	def search(self,keyword,params={},headers={}):
+	def search(self,keyword,params={},headers={},proxy=None):
 		self.reset()
 		if (not keyword):return
 
 		params[self.word]=keyword
 		params['sc_hit']='1'#for find all, not exactly
-		r=requests.get(self.url,params=params,headers=headers,timeout=timeout_setting)
+		if proxy:
+			if not isinstance(proxy,dict):
+				proxy=None
+
+		if (proxy):
+			r=requests.get(self.url,params=params,headers=headers,proxies=proxy,timeout=timeout_setting)
+		else:
+			r=requests.get(self.url,params=params,headers=headers,timeout=timeout_setting)
 		if r.status_code is 200:
 			if ('<img src="http://verify.baidu.com/cgi-bin/genimg' in r.text):
 				time.sleep(600)
@@ -325,7 +332,7 @@ class BaiduXueshu(object):
 		fin.close()			
 
 	def findPDFbyISSN(self,issn,maxresult=None, step=100, offset=0, 
-		usedoi=True,doifilter=None,onlinecheck=True,savestate=None):
+		usedoi=True,doifilter=None,onlinecheck=True,savestate=None,proxy=None):
 		'''Find PDF by ISSN based on search result from crossref'''
 		# may be improve to not only issn..
 		if (not issn):return
@@ -378,7 +385,7 @@ class BaiduXueshu(object):
 					print "#####################################",offsetcount,"####################################"
 					print "## Now finding for doi with title:"+doi+" "+ keyword.encode('utf-8')+"............"
 					sys.stdout.flush()
-					self.search(keyword.encode('utf-8'))
+					self.search(keyword.encode('utf-8'),proxy=proxy)
 					bdresult=self.getallpdf(doifilter,onlinecheck=onlinecheck,savestate=savestate)
 					bdcheck.set(doi)
 					offsetcount+=1

@@ -6,7 +6,10 @@
 # post : http://ezproxy.harford.edu/login?user=21556768546687&url=
 # http://ezproxy.lcsc.edu:2048/login?user=kdleach&pass=021783
 # http://webserver.macu.edu:2048/login 3952//3952
-#  http://ezproxy.reinhardt.edu:2048/login brown//45199
+# http://ezproxy.reinhardt.edu:2048/login brown//45199
+# http://nih-library.nih.gov/patroninfo  Jose//0010103413
+# https://login.stanfordhealthlibrary.idm.oclc.org/login  stanford//Heal650
+# http://library.snu.ac.kr/eng/index.ax   pnhkhr@snu.ac.kr///pnhphj
 
 class EzProxy(object):
 	def __init__(self,proxy):
