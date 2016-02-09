@@ -229,7 +229,7 @@ class DOI(str):
 		header={'Accept':typestr}
 		r=requests.get("http://dx.doi.org/"+doi,headers=header,timeout=TIMEOUT_SETTING)
 		if (r.status_code is 200):
-			return r.text
+			return r.text.encode('utf-8')
 		print "Error doi (DOI.getbibliography)! "+doi 
 		return ""
 
