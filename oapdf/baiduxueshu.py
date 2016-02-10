@@ -102,8 +102,12 @@ class BaiduXueshu(object):
 			if ('<img src="http://verify.baidu.com/cgi-bin/genimg' in r.text):
 				time.sleep(600)
 				self.search(keyword,params=params,headers=headers)
-			self.soup=BeautifulSoup(r.text, "html.parser")
-			self.items=self.soup.findChildren('div',attrs={'class':'result sc_default_result xpath-log'})
+			try:
+				self.soup=BeautifulSoup(r.text, "html.parser")
+				self.items=self.soup.findChildren('div',attrs={'class':'result sc_default_result xpath-log'})
+			except Exception as e:
+				print e,'when parsing searching result'
+				return 
 			#print "Find",len(self.items)," Results."
 			#for item in items:
 
