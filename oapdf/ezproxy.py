@@ -10,6 +10,9 @@
 # http://nih-library.nih.gov/patroninfo  Jose//0010103413
 # https://login.stanfordhealthlibrary.idm.oclc.org/login  stanford//Heal650
 # http://library.snu.ac.kr/eng/index.ax   pnhkhr@snu.ac.kr///pnhphj
+# http://proxy.ncwc.edu/login  LeverettSmith//092438
+# http://www.diglib.um.edu.my/interaktif/default.asp X52203953
+# https://lib.just.edu.jo/login  20113024008////12345678
 
 class EzProxy(object):
 	def __init__(self,proxy):

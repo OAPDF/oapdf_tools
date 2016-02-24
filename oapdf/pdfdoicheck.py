@@ -611,7 +611,7 @@ class PDFdoiCheck(object):
 		if (not fdoi and not recursive):
 			if (len(self.doi) is 1 or len(self.doi) is 2):
 				print "Origin fdoi wrong but has 1~2 dois in file:",self._fname,
-				return self.recursivedoicheck(excludedoi,olddoi=fdoi,wtitle=wtitle,cutoff=wtitle,justcheck=justcheck)
+				return self.recursivedoicheck(excludedoi,olddoi=fdoi,wtitle=wtitle,cutoff=cutoff,justcheck=justcheck)
 			# No doi or >2 dois in file
 			else:
 				if not justcheck: 
@@ -697,7 +697,7 @@ class PDFdoiCheck(object):
 						return 4
 
 					print 'Wrong total page with dois in file,',self._fname,fdoi,',try recursive'
-					return self.recursivedoicheck(excludedoi,olddoi=fdoi,wtitle=wtitle,cutoff=wtitle,justcheck=justcheck)
+					return self.recursivedoicheck(excludedoi,olddoi=fdoi,wtitle=wtitle,cutoff=cutoff,justcheck=justcheck)
 				else:
 					if not justcheck: 
 						self.moveresult(4,printstr="PDF Page "+str(self.maxpage)+"!="+str(totalpagenumber)+"(Fail): "+self._fname)
@@ -710,8 +710,12 @@ class PDFdoiCheck(object):
 					titleeval=self.checktitle(cr.title)
 				titlevalid=titleeval[0]
 				try:
+					paperyear=int(cr.year)
+				except:
+					paperyear=9999
+				try:
 					# Too old maybe lost information
-					if (int(cr.year)>1990):
+					if (paperyear>1990):
 						titlevalid=titlevalid or (titleeval[1]*wtitle+crscore['total'])>=cutoff
 					else:
 						titlevalid=titlevalid or (titleeval[1]*wtitle+crscore['total'])>=cutoff-0.1
@@ -730,7 +734,7 @@ class PDFdoiCheck(object):
 					if (len(self.doi - set([fdoi])) == 1 and not recursive):
 						
 						# Try one more
-						newresult = self.recursivedoicheck(excludedoi,olddoi=fdoi,wtitle=wtitle,cutoff=wtitle,justcheck=True)
+						newresult = self.recursivedoicheck(excludedoi,olddoi=fdoi,wtitle=wtitle,cutoff=cutoff,justcheck=True)
 						if (newresult is 0):
 							newdoi=DOI(list(self.doi - set([fdoi]))[0])
 							self.realdoi=newdoi
@@ -839,7 +843,7 @@ class PDFdoiCheck(object):
 			# Indeed, file has only one more doi, not the same to fname
 			if (len(self.doi - set([fdoi])) is 1 ):
 				print 'Fail fdoi/title. Paper with one more doi in file,',self._fname,',try recursive'
-				return self.recursivedoicheck(excludedoi,olddoi=fdoi,wtitle=wtitle,cutoff=wtitle,justcheck=justcheck)
+				return self.recursivedoicheck(excludedoi,olddoi=fdoi,wtitle=wtitle,cutoff=cutoff,justcheck=justcheck)
 			elif(len(self.doi) > 1):
 				if not justcheck: 
 					self.moveresult(2,printstr="fdoi/title fail. Too much infile doi(Unsure): "+self._fname)
@@ -854,7 +858,7 @@ class PDFdoiCheck(object):
 				self.finddoi(set([1,2,self.maxpage]))
 				if (len(self.doi) is 1 or len(self.doi) is 2):
 					print 'Error DOI filename,',self._fname,',try recursive'
-					return self.recursivedoicheck(excludedoi,olddoi=fdoi,wtitle=wtitle,cutoff=wtitle,justcheck=justcheck)				
+					return self.recursivedoicheck(excludedoi,olddoi=fdoi,wtitle=wtitle,cutoff=cutoff,justcheck=justcheck)				
 			if not justcheck: 
 				self.moveresult(6,"Error DOI fname(Fail):"+self._fname)
 			return 6
