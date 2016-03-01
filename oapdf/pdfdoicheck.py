@@ -475,11 +475,23 @@ class PDFdoiCheck(object):
 	def scorefitting(self,cr):
 		'''Score the PDF with the giving crossref record'''
 		try:
+			try:
+				totalpagenumber=self.totalpages(cr.pages)
+			except Exception as e:
+				totalpagenumber=1
+				print e
+			totalpagewrong=False
+			if totalpagenumber>0 and not (self.maxpage >= totalpagenumber and self.maxpage <= totalpagenumber+2):
+				totalpagewrong=True
+
 			spages=self.hascontent(cr.pages,1.0,page=1)[1]
 			if (spages<0.1):
 				spages2=self.hascontent(cr.pages.split('-')[0],1.0,page=1)[1]
 				if (spages2>spages):
 					spages=spages2
+			if spages>0.1 and not totalpagewrong:
+				spages+=1.5
+
 			sjournal=self.hasoneofcontent(cr.journals,1.0,page=1)[1]
 			syear=self.hasoneofcontent([cr.year,str(int(cr.year)+1),str(int(cr.year)-1)],1.0,page=1)[1]
 			sauthors=0.0
@@ -494,6 +506,9 @@ class PDFdoiCheck(object):
 				spages2=self.hascontent(cr.pages.split('-')[0],1.0,page=2)[1]
 				if (spages2>spages):
 					spages=spages2
+			if spages>0.1 and not totalpagewrong:
+				spages+=1.5
+
 			sjournal=self.hasoneofcontent(cr.journals,1.0,page=2)[1]
 			syear=self.hasoneofcontent([cr.year,str(int(cr.year)+1),str(int(cr.year)-1)],1.0,page=2)[1]
 			sauthors=0.0
