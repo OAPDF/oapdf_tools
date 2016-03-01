@@ -491,6 +491,9 @@ class PDFdoiCheck(object):
 					spages=spages2
 			if spages>0.1 and not totalpagewrong:
 				spages+=1.5
+			elif (not totalpagewrong):
+				if (len(cr.pages.split('-')[0])<3):
+					spages+=1.5
 
 			sjournal=self.hasoneofcontent(cr.journals,1.0,page=1)[1]
 			syear=self.hasoneofcontent([cr.year,str(int(cr.year)+1),str(int(cr.year)-1)],1.0,page=1)[1]
@@ -508,7 +511,10 @@ class PDFdoiCheck(object):
 					spages=spages2
 			if spages>0.1 and not totalpagewrong:
 				spages+=1.5
-
+			elif (not totalpagewrong):
+				if (len(cr.pages.split('-')[0])<3):
+					spages+=1.5
+					
 			sjournal=self.hasoneofcontent(cr.journals,1.0,page=2)[1]
 			syear=self.hasoneofcontent([cr.year,str(int(cr.year)+1),str(int(cr.year)-1)],1.0,page=2)[1]
 			sauthors=0.0
