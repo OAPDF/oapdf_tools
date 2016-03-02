@@ -333,11 +333,11 @@ class EndnoteXML(object):
 						self.setpdf(i,pdf)
 						break
 
-	def process(self,fname="",cleannote=False,prefix='',issn=''):
+	def process(self,fname="",cleannote=False,prefix='',issn='',start=0):
 		epath=self.getpath()
 		print "Output",self.length,"to",epath+os.sep+fname
-		for i in range(self.length):
-			#try:
+		for i in range(start,self.length):
+			try:
 				#if (i%100 is 0):
 				#	print
 				#	print "Doing:",i+1,
@@ -356,10 +356,15 @@ class EndnoteXML(object):
 
 				if (cleannote):
 					self.cleannote(i)
-				doi=DOI(self.finddoi(i,prefix=prefix,issn=issn))
+
+				doistr=self.gettag(i,"electronic-resource-num")
+				if (doistr[:4]=='chk:'):
+					doi=DOI(self.getdoi(i))
+				else:
+					doi=DOI(self.finddoi(i,prefix=prefix,issn=issn))
 				oapdflink=""
 				if (doi):
-					self.setdoi(i,doi)
+					self.setdoi(i,"chk: "+doi)
 					if (doi.is_oapdf()):
 						oapdflink="http://oapdf.sourceforge.net/cgi-bin/doipage.cgi?doi="+doi
 
@@ -411,8 +416,9 @@ class EndnoteXML(object):
 				# Set the urls
 				if (oapdflink and oapdflink not in urls):
 					self.addurl(i,oapdflink,first=True)
-			#except:
-			#	return 1
+			except Exception as e:
+				print "Error at ", i, 'since: ',e
+				#return 1
 		if fname:
 			self.write(fname)
 		return 0

@@ -92,6 +92,9 @@ if __name__ == "__main__":
 	parser.add_option("--morecheck", action="store_true", 
 					dest="morecheck", default=False,
 					help="To more check and remove Patent/SI pdf file in currenct directory")
+	parser.add_option("--title2doi", action="store_true", 
+					dest="title2doi", default=False,
+					help="Use big title to find doi")
 	parser.add_option("--retaindone", action="store_true", 
 					dest="retaindone", default=False,
 					help="To Only retain pdf for Done")
@@ -144,6 +147,14 @@ if __name__ == "__main__":
 			sys.stdout.flush()
 		sys.exit(0)
 
+	elif (options.title2doi):
+		dpf=PDFdoiCheck()
+		for f in glob.iglob("*.pdf"):
+			f=__doifilerename(f)
+			dpf.tryrenamefromtitle(f)
+			sys.stdout.flush()
+		sys.exit(0)
+
 	maxpage=int(options.maxpage)
 	if (maxpage<1):maxpage=1
 	offset=int(options.offset)
@@ -153,7 +164,7 @@ if __name__ == "__main__":
 		exml=EndnoteXML(options.endnote)
 		tmp=os.path.splitext(options.endnote)
 		sys.exit(exml.process(tmp[0]+'_new'+tmp[1], cleannote=options.cleannote,\
-		 prefix=options.prefix, issn=options.issn))
+		 prefix=options.prefix, issn=options.issn,start=offset))
 
 	pfilter=None
 	publishers=[]

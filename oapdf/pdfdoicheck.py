@@ -514,7 +514,7 @@ class PDFdoiCheck(object):
 			elif (not totalpagewrong):
 				if (len(cr.pages.split('-')[0])<3):
 					spages+=1.5
-					
+
 			sjournal=self.hasoneofcontent(cr.journals,1.0,page=2)[1]
 			syear=self.hasoneofcontent([cr.year,str(int(cr.year)+1),str(int(cr.year)-1)],1.0,page=2)[1]
 			sauthors=0.0
@@ -974,5 +974,36 @@ class PDFdoiCheck(object):
 					os.renames(fname,tmp[0]+'@.SI'+tmp[1])
 					self._fname=tmp[0]+'@.SI'+tmp[1]
 				return 3
+
+	def tryrenamefromtitle(self,fname=None,cutoff=0.85,fontsize=0,autotry=False,wtitle=0.65):
+		if not fname: fname=self._fname
+		if (not fname or (fname == "None")):
+			print "No file name is set!"
+			return 0
+		outstr=self.getbigtitle(fname=fname,cutoff=cutoff,fontsize=fontsize,autotry=autotry).lower().strip()
+		print outstr
+		url="http://api.crossref.org/works?query="+normalizeString(outstr)+"&rows=5"
+		r=requests.get(url,timeout=TIMEOUT_SETTING)
+		dois=[]
+		if (r.status_code is 200):
+			datas=r.json().get('message',{'items':[]}).get('items',[])
+			for data in datas:
+				dois.append(data.get('DOI',''))
+
+		self.reset(fname)
+		outnow=99999
+		for doi in dois:
+			print "Try doi:",doi,'for',fname
+			self.doi=set([doi])
+			out=self.renamecheck(fname=fname, fobj=None ,wtitle=wtitle,cutoff=cutoff,
+				justcheck=False,fdoi=None,resetfile=False,excludedoi=None)
+			if out ==0:
+				break
+			elif outnow>out:
+				outnow=out
+
+
+
+
 
 
