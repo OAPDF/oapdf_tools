@@ -15,7 +15,7 @@ class DOI(str):
 	It should contain "10." and / or @, Else: it will be blank 
 	if doi is quote, it will unquote when generate'''
 
-	pdoi=re.compile("(?:\:|\\b)(10[.][0-9]{4,}(?:[.][0-9]+)*/(?:(?![\|\"&\'<>])\\S)+)(?:\+?|\\b)")
+	pdoi=re.compile("(?:\:|\\b)(10[.][0-9]{4,}(?:[.][0-9]+)*/(?:(?![\|\"&\'])\\S)+)(?:\+?|\\b)")
 	def __new__(self,doi=""):
 		'''Should be 10.*/ or 10.*@ 
 		Normalize(lower,strip)
