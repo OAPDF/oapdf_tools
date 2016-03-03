@@ -792,6 +792,12 @@ class PDFdoiCheck(object):
 
 				# DOI maybe not exist ....
 				if (titlevalid):
+					tmpdois=set(self.doi)
+					for d in tmpdois:
+						dd=DOI(d)
+						if ( not dd.valid_doiorg(geturl=False) ):
+							self.doi.remove(d)
+							
 					# Old paper don't have doi...
 					if len(self.doi) is 0 and totalpagenumber>0:
 						if (crscore['total'] >= 0.4):

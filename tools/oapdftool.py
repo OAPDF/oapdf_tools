@@ -83,6 +83,15 @@ if __name__ == "__main__":
 	parser.add_option("--onlyrsc", action="store_true", 
 					dest="onlyrsc", default=False,
 					help="Only get pdf with RSC doi style")
+	parser.add_option("--onlyaip", action="store_true", 
+					dest="onlyaip", default=False,
+					help="Only get pdf with RSC doi style")
+	parser.add_option("--onlynature", action="store_true", 
+					dest="onlynature", default=False,
+					help="Only get pdf with RSC doi style")
+	parser.add_option("--onlyscience", action="store_true", 
+					dest="onlyscience", default=False,
+					help="Only get pdf with RSC doi style")
 	parser.add_option("--onlyall", action="store_true", 
 					dest="onlyall", default=False,
 					help="Only get pdf with given all publisher doi style")
@@ -171,12 +180,13 @@ if __name__ == "__main__":
 
 	if options.onlyall:
 		publishers.append('all')
-	elif options.onlyacs:
-		publishers.append('acs')
-	elif options.onlywiley:
-		publishers.append('wiley')
-	elif options.onlysd:
-		publishers.append('sd')
+	else:
+		if options.onlyacs:
+			publishers.append('acs')
+		if options.onlywiley:
+			publishers.append('wiley')
+		if options.onlysd:
+			publishers.append('sd')
 	
 	if publishers: pfilter=PublisherFilter(publishers).filter	
 
