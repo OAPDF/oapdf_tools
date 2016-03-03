@@ -362,11 +362,11 @@ class EndnoteXML(object):
 					doi=DOI(self.getdoi(i))
 				else:
 					doi=DOI(self.finddoi(i,prefix=prefix,issn=issn))
+					if doi:
+						self.setdoi(i,"chk: "+doi)
 				oapdflink=""
-				if (doi):
-					self.setdoi(i,"chk: "+doi)
-					if (doi.is_oapdf()):
-						oapdflink="http://oapdf.sourceforge.net/cgi-bin/doipage.cgi?doi="+doi
+				if (doi and doi.is_oapdf()):
+					oapdflink="http://oapdf.sourceforge.net/cgi-bin/doipage.cgi?doi="+doi
 
 				newpdfs=[]
 				for pdf in pdfs:
