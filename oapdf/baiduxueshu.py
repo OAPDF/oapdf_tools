@@ -158,7 +158,7 @@ class BaiduXueshu(object):
 			doi=DOI("")
 		return DOI(doi[doi.find('10.'):])
 
-	def getallpdf(self,doifilter=None,onlinecheck=True,savestate=None):
+	def getallpdf(self,doifilter=None,onlinecheck=True,savestate=None,usebdcheck=True):
 		'''Get All pdf from link
 		doifilter should be a function, return True when DOI ok'''
 		usedoifilter=callable(doifilter)
@@ -185,10 +185,11 @@ class BaiduXueshu(object):
 						continue
 						
 					# Check by bdcheck api
-					bdout=bdcheck.get(doi)
-					if sum(bdout)>0:
-						print doi, 'has search/oapdf/free',bdout
-						continue
+					if (usebdcheck):
+						bdout=bdcheck.get(doi)
+						if sum(bdout)>0:
+							print doi, 'has search/oapdf/free',bdout
+							continue
 					oapdffree=bdcheck.setbycheck(doi)
 					if (oapdffree[0] and oapdffree[1]):
 						print doi,'exist in oapdf/free library..'
@@ -336,7 +337,7 @@ class BaiduXueshu(object):
 		fin.close()			
 
 	def findPDFbyISSN(self,issn,maxresult=None, step=100, offset=0, 
-		usedoi=True,doifilter=None,onlinecheck=True,savestate=None,proxy=None):
+		usedoi=True,doifilter=None,onlinecheck=True,savestate=None,proxy=None,usebdcheck=True):
 		'''Find PDF by ISSN based on search result from crossref'''
 		# may be improve to not only issn..
 		if (not issn):return
@@ -355,7 +356,9 @@ class BaiduXueshu(object):
 			r=requests.get(needurl,params,timeout=timeout_setting_download)
 			if (r.status_code is 200):
 				# Get all check/in oapdf 
-				bdcheckall=bdcheck.filterdois(r.json(),oapdf=1,crjson=True)
+				if usebdcheck: 
+					bdcheckall=bdcheck.filterdois(r.json(),oapdf=1,crjson=True)
+
 				for j in r.json().get('message',{}).get('items',[]):
 					keyword=j.get('title',[''])
 					doi=DOI(j.get("DOI",""))
@@ -365,11 +368,12 @@ class BaiduXueshu(object):
 						continue
 
 					# Check whether in bdcheck
-					if (doi in bdcheckall):
+					if (usebdcheck and doi in bdcheckall):
 						print doi, 'has search/oapdf/free by bdcheck'
 						offsetcount+=1
 						time.sleep(1)
 						continue
+						
 					# If not in bdcheck, check oapdf/free and set it
 					# TODO: remove it after combine oapdf information to library
 					oapdffree=bdcheck.setbycheck(doi)
@@ -390,7 +394,7 @@ class BaiduXueshu(object):
 					print "## Now finding for doi with title:"+doi+" "+ keyword.encode('utf-8')+"............"
 					sys.stdout.flush()
 					self.search(keyword.encode('utf-8'),proxy=proxy)
-					bdresult=self.getallpdf(doifilter,onlinecheck=onlinecheck,savestate=savestate)
+					bdresult=self.getallpdf(doifilter,onlinecheck=onlinecheck,savestate=savestate,usebdcheck=usebdcheck)
 					bdcheck.set(doi)
 					offsetcount+=1
 			gc.collect()

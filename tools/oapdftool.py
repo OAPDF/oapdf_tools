@@ -71,6 +71,9 @@ if __name__ == "__main__":
 	parser.add_option("--nodoi", action="store_false", 
 					dest="doi", default=True,
 					help="Turn off doi method")
+	parser.add_option("--nobdcheck", action="store_false", 
+					dest="bdcheck", default=True,
+					help="Don't use bdcheck.")
 	parser.add_option("--onlyacs", action="store_true", 
 					dest="onlyacs", default=False,
 					help="Only get pdf with ACS doi style")
@@ -79,19 +82,22 @@ if __name__ == "__main__":
 					help="Only get pdf with Elesvier doi style")
 	parser.add_option("--onlywiley", action="store_true", 
 					dest="onlywiley", default=False,
-					help="Only get pdf with wiley doi style")
+					help="Only get pdf with Wiley doi style")
+	parser.add_option("--onlysp", action="store_true", 
+					dest="onlyspringer", default=False,
+					help="Only get pdf with Springer doi style")
 	parser.add_option("--onlyrsc", action="store_true", 
 					dest="onlyrsc", default=False,
 					help="Only get pdf with RSC doi style")
 	parser.add_option("--onlyaip", action="store_true", 
 					dest="onlyaip", default=False,
-					help="Only get pdf with RSC doi style")
-	parser.add_option("--onlynature", action="store_true", 
+					help="Only get pdf with AIP doi style")
+	parser.add_option("--onlynt", action="store_true", 
 					dest="onlynature", default=False,
-					help="Only get pdf with RSC doi style")
-	parser.add_option("--onlyscience", action="store_true", 
+					help="Only get pdf with Nature doi style")
+	parser.add_option("--onlysc", action="store_true", 
 					dest="onlyscience", default=False,
-					help="Only get pdf with RSC doi style")
+					help="Only get pdf with Science doi style")
 	parser.add_option("--onlyall", action="store_true", 
 					dest="onlyall", default=False,
 					help="Only get pdf with given all publisher doi style")
@@ -168,6 +174,7 @@ if __name__ == "__main__":
 	if (maxpage<1):maxpage=1
 	offset=int(options.offset)
 	maxresult=int(options.maxresult)
+	usebdcheck=options.bdcheck
 
 	if (options.endnote):
 		exml=EndnoteXML(options.endnote)
@@ -187,6 +194,16 @@ if __name__ == "__main__":
 			publishers.append('wiley')
 		if options.onlysd:
 			publishers.append('sd')
+		if options.onlyspringer:
+			publishers.append('springer')
+		if options.onlyrsc:
+			publishers.append('rsc')
+		if options.onlyaip:
+			publishers.append('aip')
+		if options.onlynature:
+			publishers.append('nature')
+		if options.onlyscience:
+			publishers.append('science')
 	
 	if publishers: pfilter=PublisherFilter(publishers).filter	
 
@@ -215,7 +232,8 @@ if __name__ == "__main__":
 		if (options.input and options.doi):
 			bdxs.finddoiPDFfromFile(options.input)
 		if (options.issn):
-			bdxs.findPDFbyISSN(options.issn,maxresult=maxresult,offset=offset,usedoi=options.doi,doifilter=pfilter)
+			bdxs.findPDFbyISSN(options.issn,maxresult=maxresult,offset=offset,usedoi=options.doi,
+				doifilter=pfilter,usebdcheck=usebdcheck)
 
 # rsc=292
 # acs=316

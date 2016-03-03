@@ -28,7 +28,7 @@ class BDCheck(object):
 					if r.status_code ==200:
 						return r.json().get(doi,[])
 				return [0,0,0]
-			# if dois in list/tuple/set
+			# if dois in list/tuple/set,return {doi:[0,0,0],...}
 			elif(isinstance(doi,(list,tuple,set))):
 				dois=list(doi)
 				result={}
