@@ -337,7 +337,7 @@ class EndnoteXML(object):
 		epath=self.getpath()
 		print "Output",self.length,"to",epath+os.sep+fname
 		for i in range(start,self.length):
-			try:
+			#try:
 				#if (i%100 is 0):
 				#	print
 				#	print "Doing:",i+1,
@@ -416,8 +416,8 @@ class EndnoteXML(object):
 				# Set the urls
 				if (oapdflink and oapdflink not in urls):
 					self.addurl(i,oapdflink,first=True)
-			except Exception as e:
-				print "Error at ", i, 'since: ',e
+			#except Exception as e:
+			#	print "Error at ", i, 'since: ',e
 				#return 1
 		if fname:
 			self.write(fname)
