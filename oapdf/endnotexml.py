@@ -277,41 +277,45 @@ class EndnoteXML(object):
 		year=self.getyear(num) 
 		pages=self.getpages(num)
 		self.cr=CRrecord()
-		# The origin doi maybe true. Find in crossref
-		if ( doi and self.cr.getfromdoi(doi,fullparse=False) and self.cr.doi):
-			# Further check title
-			if (strdiff(doi,self.cr.doi)>=0.85 and \
-			strsimilarity(normalizeString(title),normalizeString(self.cr.title))>0.75):
-				return doi
-			if( volume and pages ):
-				ops=pages.split('-')
-				crps=self.cr.pages.split('-')
-				if (len(ops)>0 and len(crps)>0 and ops[0]==crps[0] and volume==self.cr.volume):
+		try:
+			# The origin doi maybe true. Find in crossref
+			if ( doi and self.cr.getfromdoi(doi,fullparse=False) and self.cr.doi):
+				# Further check title
+				if (strdiff(doi,self.cr.doi)>=0.85 and \
+				strsimilarity(normalizeString(title),normalizeString(self.cr.title))>0.75):
 					return doi
-			if( year and pages ):
-				ops=pages.split('-')
-				crps=self.cr.pages.split('-')
-				if (len(ops)>0 and len(crps)>0 and ops[0]==crps[0] and year==self.cr.year):
-					return doi
-			print "Origin DOI:",doi,"may be true but record strange..Try title"
+				if( volume and pages ):
+					ops=pages.split('-')
+					crps=self.cr.pages.split('-')
+					if (len(ops)>0 and len(crps)>0 and ops[0]==crps[0] and volume==self.cr.volume):
+						return doi
+				if( year and pages ):
+					ops=pages.split('-')
+					crps=self.cr.pages.split('-')
+					if (len(ops)>0 and len(crps)>0 and ops[0]==crps[0] and year==self.cr.year):
+						return doi
+				print "Origin DOI:",doi,"may be true but record strange..Try title"
 
-		keyword=title+" "+journal+" "+year+" "+pages+" "+volume
-		if (self.cr.getfromtitledoi(keyword,doi,year=year,limit=10,fullparse=False,prefix=prefix)):
+			keyword=title+" "+journal+" "+year+" "+pages+" "+volume
+			if (self.cr.getfromtitledoi(keyword,doi,year=year,limit=10,fullparse=False,prefix=prefix)):
+				if (doi):
+					if( prefix == self.cr.doi.split('/')[0] and strdiff(doi,self.cr.doi)>=0.85):
+						return self.cr.doi
+					else:
+						print "Error for origin doi: "+doi+"; found: "+self.cr.doi
+						return ""
+				return self.cr.doi
 			if (doi):
-				if( prefix == self.cr.doi.split('/')[0] and strdiff(doi,self.cr.doi)>=0.85):
+				if( strdiff(doi,self.cr.doi)>=0.85):
 					return self.cr.doi
 				else:
-					print "Error for origin doi: "+doi+"; found: "+self.cr.doi
+					print "Error2 for origin doi: "+doi+"; found: "+self.cr.doi
 					return ""
-			return self.cr.doi
-		if (doi):
-			if( strdiff(doi,self.cr.doi)>=0.85):
-				return self.cr.doi
 			else:
-				print "Error2 for origin doi: "+doi+"; found: "+self.cr.doi
 				return ""
-		else:
-			return ""
+		except Exception as e:
+			print "Error when find doi..",e,"\nRetry..."
+			return self.finddoi(num,prefix=prefix,issn=issn)
 
 	def preprocess(self):
 		pass
@@ -337,7 +341,7 @@ class EndnoteXML(object):
 		epath=self.getpath()
 		print "Output",self.length,"to",epath+os.sep+fname
 		for i in range(start,self.length):
-			#try:
+			try:
 				#if (i%100 is 0):
 				#	print
 				#	print "Doing:",i+1,
@@ -347,18 +351,23 @@ class EndnoteXML(object):
 				pdfs=self.getpdf(i)
 				urls=self.geturl(i)
 				# Fast consider as record process before
+				hasfound=False
 				for pdf in pdfs:
 					if "internal-pdf://OAPDF/" in pdf:
-						continue
+						hasfound=True
+						break
 				for url in urls:
 					if "http://oapdf.sourceforge.net/cgi-bin/" in url:
-						continue
+						hasfound=True
+						break
+				if hasfound:
+					continue
 
 				if (cleannote):
 					self.cleannote(i)
 
 				doistr=self.gettag(i,"electronic-resource-num")
-				if (doistr[:4]=='chk:'):
+				if (doistr and len(doistr)>4 and doistr[:4]=='chk:'):
 					doi=DOI(self.getdoi(i))
 				else:
 					doi=DOI(self.finddoi(i,prefix=prefix,issn=issn))
@@ -416,8 +425,8 @@ class EndnoteXML(object):
 				# Set the urls
 				if (oapdflink and oapdflink not in urls):
 					self.addurl(i,oapdflink,first=True)
-			#except Exception as e:
-			#	print "Error at ", i, 'since: ',e
+			except Exception as e:
+				print "Error at ", i, 'since: ',e
 				#return 1
 		if fname:
 			self.write(fname)

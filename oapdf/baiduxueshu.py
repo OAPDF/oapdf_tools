@@ -93,23 +93,27 @@ class BaiduXueshu(object):
 		if proxy:
 			if not isinstance(proxy,dict):
 				proxy=None
-
-		if (proxy):
-			r=requests.get(self.url,params=params,headers=headers,proxies=proxy,timeout=timeout_setting)
-		else:
-			r=requests.get(self.url,params=params,headers=headers,timeout=timeout_setting)
-		if r.status_code is 200:
-			if ('<img src="http://verify.baidu.com/cgi-bin/genimg' in r.text):
-				time.sleep(600)
-				self.search(keyword,params=params,headers=headers)
-			try:
-				self.soup=BeautifulSoup(r.text, "html.parser")
-				self.items=self.soup.findChildren('div',attrs={'class':'result sc_default_result xpath-log'})
-			except Exception as e:
-				print e,'when parsing searching result'
-				return 
-			#print "Find",len(self.items)," Results."
-			#for item in items:
+		try:
+			if (proxy):
+				r=requests.get(self.url,params=params,headers=headers,proxies=proxy,timeout=timeout_setting)
+			else:
+				r=requests.get(self.url,params=params,headers=headers,timeout=timeout_setting)
+			if r.status_code is 200:
+				if ('<img src="http://verify.baidu.com/cgi-bin/genimg' in r.text):
+					time.sleep(600)
+					self.search(keyword,params=params,headers=headers)
+				try:
+					self.soup=BeautifulSoup(r.text, "html.parser")
+					self.items=self.soup.findChildren('div',attrs={'class':'result sc_default_result xpath-log'})
+				except Exception as e:
+					print e,'when parsing searching result'
+					return 
+				#print "Find",len(self.items)," Results."
+				#for item in items:
+		except Exception as e:
+			print "Error when searching word.."
+			time.sleep(20)
+			self.search(keyword=keyword,params=params,headers=headers,proxy=proxy)
 
 	def _parsepdflink(self,link):
 		'''Some pdf link in baidu format'''
