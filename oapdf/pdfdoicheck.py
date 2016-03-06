@@ -681,6 +681,11 @@ class PDFdoiCheck(object):
 					# For NIH Public Access
 					elif (self.hascontent("NIH Public Access")[0]):
 						totalpagewrong=False
+					#Such as some Nature with SI in paper without notify.
+					elif (self.withSI or (totalpagenumber>1 and self.findtext("acknowledgment", page=[totalpagenumber-1, totalpagenumber]) 
+						and self.findtext("reference", page=[totalpagenumber-1, totalpagenumber]))):
+						self.withSI=True
+						totalpagewrong=False
 
 			# Recursive but total page wrong. Fast end recursivedoicheck
 			if (totalpagewrong and recursive):	
@@ -814,11 +819,16 @@ class PDFdoiCheck(object):
 							return 0
 						elif (titleeval[1]>=0.90 and crscore['pages']>=0.5 and crscore['year']>=0.9 and (crscore['journal']>=0.9 or crscore['issn']>=0.9) and crscore['authors']>=0.7):
 							if not justcheck: self.moveresult(0)
-							return 0	
+							return 0
+						elif (titleeval[1]>=0.75 or crscore['total'] >=0.25):
+							print "Title/Paper score:",titleeval[1],crscore,self._fname
+							if not justcheck: 
+								self.moveresult(1,printstr="OK title and high info fit. But no doi(Highly): "+self._fname)
+								return 1
 						else:
 							print "Title/Paper score:",titleeval[1],crscore,self._fname
 							if not justcheck: 
-								self.moveresult(2,printstr="OK title and high info fit. But no doi(Unsure): "+self._fname)
+								self.moveresult(2,printstr="OK title and ok info fit. But no doi(Unsure): "+self._fname)
 							return 2
 					elif len(self.doi) is 0 and totalpagenumber== -1:
 						if (titleeval[1]>=0.90 and crscore['pages']>=0.5 and crscore['year']>=0.9 and (crscore['journal']>=0.9 or crscore['issn']>=0.9) and crscore['authors']>=0.7):
@@ -833,8 +843,18 @@ class PDFdoiCheck(object):
 						print "Title/Paper score:",titleeval[1],crscore,self._fname
 						if not justcheck: 
 							self.moveresult(2,printstr="OK title and high info fit. But no doi and no total pages(Unsure): "+self._fname)
-						return 2						
-					
+						return 2
+					elif ( len(self.doi) > 0 and not recursive):
+						print "Good title but file doesn't contain fdoi, however it has >0 doi in file. "
+						outnow=self.recursivedoicheck(excludedoi,olddoi=fdoi,wtitle=wtitle,cutoff=cutoff,justcheck=True)
+						if outnow > 0:
+							if not justcheck:
+								self.moveresult(2,printstr="OK title but not fdoi. In file doi is not good(Unsure): "+self._fname)
+							return 2
+						elif(outnow==0):
+							print 'Good Title but Fail fdoi. Paper has good in file doi,',self._fname,',try recursive'
+							return self.recursivedoicheck(excludedoi,olddoi=fdoi,wtitle=wtitle,cutoff=cutoff,justcheck=justcheck)
+
 					### Old method check old items:
 					#if (self.checkcrossref(cr)):
 					#	if (int(cr.year)<=1999 and len(self.doi) is 0):
@@ -873,8 +893,8 @@ class PDFdoiCheck(object):
 				return self.recursivedoicheck(excludedoi,olddoi=fdoi,wtitle=wtitle,cutoff=cutoff,justcheck=justcheck)
 			elif(len(self.doi) > 1):
 				if not justcheck: 
-					self.moveresult(2,printstr="fdoi/title fail. Too much infile doi(Unsure): "+self._fname)
-				return 2
+					self.moveresult(4,printstr="fdoi/title fail. Too much infile doi(Fail): "+self._fname)
+				return 4
 			else:
 				if not justcheck: 
 					self.moveresult(4,printstr="What????? What?????(Fail):"+self._fname)

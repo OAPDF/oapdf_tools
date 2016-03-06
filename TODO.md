@@ -4,3 +4,7 @@
 - [JSTOR](http://links.jstor.org/sici?)
 - [CiteSeerX](http://citeseerx.ist.psu.edu)
 - [Havard HOAP](https://cyber.law.harvard.edu/research/hoap) [DASH](https://dash.harvard.edu/search) (Digital Access to scholarship at harvard)
+- Technical University of Denmark
+- MIT Open Access
+- Oregen State
+- University of Wwollongong Research Online
