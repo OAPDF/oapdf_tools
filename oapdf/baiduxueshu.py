@@ -345,7 +345,13 @@ class BaiduXueshu(object):
 		'''Find PDF by ISSN based on search result from crossref'''
 		# may be improve to not only issn..
 		if (not issn):return
-		needurl="http://api.crossref.org/journals/"+issn+"/works"
+		if (len(issn)==9 and issn[4]=='-'):
+			needurl="http://api.crossref.org/journals/"+issn+"/works"
+		elif('10.' in issn):
+			needurl="http://api.crossref.org/prefixes/"+issn+"/works"
+		else:
+			print "Error ISSN/prefix"
+			sys.exit(1)
 		cr=CRrecord()
 		total=cr.gettotalresultfromlink(needurl)
 		if (not maxresult or maxresult <=0 or maxresult>total): 

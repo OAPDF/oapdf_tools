@@ -734,9 +734,9 @@ class PDFdoiCheck(object):
 				if (self.maxpage <= totalpagenumber+2): 
 					# Maybe check when maxpage >total+2
 					titleeval=self.checktitle(cr.title)
-				titlevalid=titleeval[0]
 				if cr.title.strip()=="":
-					titleeval[1]=0.9
+					titleeval=(False,0.9)
+				titlevalid=titleeval[0]
 				try:
 					paperyear=int(cr.year)
 				except:
