@@ -355,11 +355,23 @@ class EndnoteXML(object):
 				for pdf in pdfs:
 					if "internal-pdf://OAPDF/" in pdf:
 						hasfound=True
+						doistr=self.gettag(i,"electronic-resource-num")
+						if (doistr and len(doistr)>4 and doistr[:4]=='chk:'):
+							doi=DOI(self.getdoi(i))
+							if doi:
+								self.setdoi(i,"chk: "+doi)
 						break
-				for url in urls:
-					if "http://oapdf.sourceforge.net/cgi-bin/" in url:
-						hasfound=True
-						break
+						
+				if not hasfound:
+					for url in urls:
+						if "http://oapdf.sourceforge.net/cgi-bin/" in url:
+							hasfound=True
+							doistr=self.gettag(i,"electronic-resource-num")
+							if (doistr and len(doistr)>4 and doistr[:4]=='chk:'):
+								doi=DOI(self.getdoi(i))
+								if doi:
+									self.setdoi(i,"chk: "+doi)
+							break
 				if hasfound:
 					continue
 
