@@ -31,7 +31,8 @@ timeout_setting=30
 timeout_setting_download=120
 
 def pdfexistpath(fname):
-	if (os.path.exists(fname) or os.path.exists('Done/'+fname)\
+	if (os.path.exists(fname) or 
+		os.path.exists('Good/'+fname) or os.path.exists('Done/'+fname)\
 		or os.path.exists('High/'+fname) or os.path.exists('Unsure/'+fname)\
 		or os.path.exists('Fail/'+fname) or os.path.exists('Untitle/'+fname) ):
 		return True

@@ -210,8 +210,8 @@ class PDFdoiCheck(object):
 		except WindowsError as e:
 			os.system("mv '"+self._fname+"' '"+newdir+"'")
 
-	judgedirs={0: 'Done' , 1: 'High', 2: 'Unsure', 3: 'Untitle', 4: 'Fail', 5: 'Page0', 6: 'ErrorDOI',10:'Unknow'}
-	def moveresult(self, judgenum, printstr=None,newfname=''):
+	judgedirs={0: 'Done' , 1: 'High', 2: 'Unsure', 3: 'Untitle', 4: 'Fail', 5: 'Page0', 6: 'ErrorDOI',10:'Unknow',99:"Good"}
+	def moveresult(self, judgenum, printstr=None,newfname='',good=False):
 		'''move to new dir and even new file name'''
 		fname=self._fname
 		if (newfname):
@@ -221,6 +221,8 @@ class PDFdoiCheck(object):
 			return
 		fbasic=os.path.split(fname)[1]
 		newdir=self.judgedirs.get(judgenum,'Unknow')
+		if (good and judgenum is 0 ):
+			newdir="Good"
 
 		if (printstr): 
 			print printstr
@@ -698,7 +700,11 @@ class PDFdoiCheck(object):
 				if (doivalid and titleeval[0] and len(self.doi) is 1):
 					# Yes! Very Good PDF!
 					self.realdoi=fdoi
-					if not justcheck: self.moveresult(0)
+					if not justcheck: 
+						if (self.maxpage>=2 and self.maxpage <= totalpagenumber+2):
+							self.moveresult(0,good=True)
+						else:
+							self.moveresult(0)
 					return 0
 
 			# Further check doi in page2/last, Finally, will check 1,2 and last pages.
@@ -755,7 +761,11 @@ class PDFdoiCheck(object):
 					if (titlevalid):					
 						# Yes! Good PDF!
 						self.realdoi=fdoi
-						if not justcheck: self.moveresult(0)
+						if not justcheck: 
+							if (self.maxpage>=2 and self.maxpage <= totalpagenumber+2 and len(self.doi) is 1):
+								self.moveresult(0,good=True)
+							else:
+								self.moveresult(0)
 						return 0
 
 					print "Title/Paper score:",titleeval[1],crscore,self._fname
