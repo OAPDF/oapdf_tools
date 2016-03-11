@@ -793,7 +793,11 @@ class PDFdoiCheck(object):
 						# Further check only when title OK
 						if (self.checkdoifurther(fdoi)):
 							# Fine! move to Done dir
-							if not justcheck: self.moveresult(0)
+							if not justcheck: 
+								if (self.maxpage>=2 and self.maxpage <= totalpagenumber+2 and len(self.doi) is 1):
+									self.moveresult(0,good=True)
+								else:
+									self.moveresult(0)
 							return 0
 						else:
 							# Can't find, but high similar! move to High dir
@@ -818,13 +822,25 @@ class PDFdoiCheck(object):
 					# Old paper don't have doi...
 					if len(self.doi) is 0 and totalpagenumber>0:
 						if (crscore['total'] >= 0.4):
-							if not justcheck: self.moveresult(0)
+							if not justcheck: 
+								if (self.maxpage>=2 and self.maxpage <= totalpagenumber+2):
+									self.moveresult(0,good=True)
+								else:
+									self.moveresult(0)
 							return 0
 						elif (titleeval[1]>=0.85 and crscore['total'] >= 0.35):
-							if not justcheck: self.moveresult(0)
+							if not justcheck: 
+								if (self.maxpage>=2 and self.maxpage <= totalpagenumber+2):
+									self.moveresult(0,good=True)
+								else:
+									self.moveresult(0)								
 							return 0
 						elif (titleeval[1]>=0.95 and crscore['total'] >=0.3):
-							if not justcheck: self.moveresult(0)
+							if not justcheck: 
+								if (self.maxpage>=2 and self.maxpage <= totalpagenumber+2):
+									self.moveresult(0,good=True)
+								else:
+									self.moveresult(0)
 							return 0
 						elif (titleeval[1]>=0.90 and crscore['pages']>=0.9 and crscore['year']>=0.9 and (crscore['journal']>=0.9 or crscore['issn']>=0.9)):
 							if not justcheck: self.moveresult(0)
