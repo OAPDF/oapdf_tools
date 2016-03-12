@@ -135,7 +135,7 @@ def touchpage(origin='.', doilink='../doilink',pdf=True,force=False):
 	toappend=[]
 	newtouch=0
 	for f in result:
-		if (touchcount%100==0):
+		if (touchcount%50==0):
 			r=requests.post(sfurl,params={'dois':json.dumps(toappend)},timeout=120)
 			if (r.status_code == 200):
 				bs=BeautifulSoup(r.text,"html.parser")
@@ -254,7 +254,7 @@ def comparepdfsize(origin='.',target='Done',check=False, totalsize=None):
 			totalfiles.append(fg)
 			nowsizes+=os.path.getsize(fg)
 
-			if (count%100 == 0):
+			if (count%50 == 0):
 				# Firstly, query the records
 				try:
 					r=requests.post(sfurl,params={'dois':json.dumps(list(tmpdois))},timeout=120)
@@ -298,7 +298,7 @@ def genpdfsize(jsfnames):
 		f.close()
 		for pdf,fs in j['items'].items():
 			count+=1
-			if (count%100 == 0):
+			if (count%50 == 0):
 				# Firstly, query the records
 				r=requests.post(sfurl,params={'dois':json.dumps(list(tmpdois))},timeout=120)
 				result=r.json()
