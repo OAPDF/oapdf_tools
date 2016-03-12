@@ -701,7 +701,8 @@ class PDFdoiCheck(object):
 					# Yes! Very Good PDF!
 					self.realdoi=fdoi
 					if not justcheck: 
-						if (self.maxpage>=2 and self.maxpage <= totalpagenumber+2):
+						if (self.maxpage>=2 and self.maxpage == totalpagenumber and
+							not self.findtext('Supporting Information', page=[1])):
 							self.moveresult(0,good=True)
 						else:
 							self.moveresult(0)
@@ -762,7 +763,9 @@ class PDFdoiCheck(object):
 						# Yes! Good PDF!
 						self.realdoi=fdoi
 						if not justcheck: 
-							if (self.maxpage>=2 and self.maxpage <= totalpagenumber+2 and len(self.doi) is 1):
+							if (self.maxpage>=2 and self.maxpage == totalpagenumber 
+								and len(self.doi) is 1 and
+								not self.findtext('Supporting Information', page=[1])):
 								self.moveresult(0,good=True)
 							else:
 								self.moveresult(0)
@@ -794,7 +797,9 @@ class PDFdoiCheck(object):
 						if (self.checkdoifurther(fdoi)):
 							# Fine! move to Done dir
 							if not justcheck: 
-								if (self.maxpage>=2 and self.maxpage <= totalpagenumber+2 and len(self.doi) is 1):
+								if (self.maxpage>=2 and self.maxpage == totalpagenumber 
+								and len(self.doi) is 1 and
+								not self.findtext('Supporting Information', page=[1])):
 									self.moveresult(0,good=True)
 								else:
 									self.moveresult(0)
@@ -823,21 +828,24 @@ class PDFdoiCheck(object):
 					if len(self.doi) is 0 and totalpagenumber>0:
 						if (crscore['total'] >= 0.4):
 							if not justcheck: 
-								if (self.maxpage>=2 and self.maxpage <= totalpagenumber+2):
+								if (self.maxpage>=2 and self.maxpage == totalpagenumber and
+								not self.findtext('Supporting Information', page=[1])):
 									self.moveresult(0,good=True)
 								else:
 									self.moveresult(0)
 							return 0
 						elif (titleeval[1]>=0.85 and crscore['total'] >= 0.35):
 							if not justcheck: 
-								if (self.maxpage>=2 and self.maxpage <= totalpagenumber+2):
+								if (self.maxpage>=2 and self.maxpage == totalpagenumber and
+								not self.findtext('Supporting Information', page=[1])):
 									self.moveresult(0,good=True)
 								else:
 									self.moveresult(0)								
 							return 0
 						elif (titleeval[1]>=0.95 and crscore['total'] >=0.3):
 							if not justcheck: 
-								if (self.maxpage>=2 and self.maxpage <= totalpagenumber+2):
+								if (self.maxpage>=2 and self.maxpage == totalpagenumber and
+								not self.findtext('Supporting Information', page=[1])):
 									self.moveresult(0,good=True)
 								else:
 									self.moveresult(0)
